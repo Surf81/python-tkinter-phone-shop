@@ -1,0 +1,13 @@
+{
+    "title": "Магазин 'Телефоны даром'",
+    "screen": {
+        "scale": {
+            "width": 1200,
+            "height": 800
+        },
+        "position": {
+            "translate_x": "CENTER",
+            "translate_y": "CENTER"
+        }
+    }
+}
