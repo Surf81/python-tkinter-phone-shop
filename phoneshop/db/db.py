@@ -8,6 +8,110 @@ class DB:
         self.check_or_create_phone_tables()
 
 
+        self.add_phone({
+            "nomination": "iPhone",
+            "price": 25000,
+            "components": {
+                "ram": "4 Gb",
+                "cpu": "A13",
+                "storage": "128 Gb",
+                "color": "black",
+            }
+        })
+
+
+    def add_phone(self, content: dict) -> int:
+        """
+        Inners:
+                 content: dict
+                    need contains:
+                    "nomination": str - name of phone
+                    "price": int | float - price of phone
+                    "components": dict - parametrs of phone
+        Returns: int 
+                 value of phone_id in database table "phone"
+                 or -1 if dublicate
+        """
+        cur = self.connect.cursor()
+
+        # Добавить отсутствующие конпоненты характеристик телефонов
+        components = tuple((characteristic.strip().lower(), value.strip()) for characteristic, value in content['components'].items())
+        cur.executemany("""INSERT INTO component(characteristic, value) 
+            SELECT c1.characteristic, c1.value
+            FROM
+                (SELECT characteristic, val.column2 as value
+                FROM 
+                (
+                    VALUES (?, ?)
+                ) val
+                JOIN characteristic ON characteristic=val.column1) c1
+            LEFT JOIN
+                component c2 ON c1.characteristic = c2.characteristic
+                                AND LOWER(c1.value)=LOWER(c2.value)
+            WHERE c2.component_id IS NULL;
+            """, components)
+        self.connect.commit()        
+
+        # Старт транзакции
+        cur.execute("""BEGIN;""")
+
+        # Добавить новую запись телефона        
+        cur.execute("""INSERT INTO phone(nomination, price)
+            VALUES (?, ?)
+            RETURNING phone_id;
+            """, (content["nomination"], content["price"]))
+        phone_id = cur.fetchone()[0]
+        print("phone_id: ", phone_id)
+
+        # Настройка компонентов телефона
+        phone_components = tuple((phone_id, characteristic, value) for characteristic, value in components)
+        cur.executemany("""INSERT INTO phone_component(phone_id, component_id, characteristic) 
+            SELECT DISTINCT c1.phone_id, component_id, c2.characteristic
+            FROM
+                (SELECT val.column1 as phone_id, characteristic, val.column3 as value
+                FROM 
+                (
+                    VALUES (?, ?, ?)
+                ) val
+                JOIN characteristic ON characteristic=val.column2) c1
+            JOIN
+                component c2 ON c1.characteristic = c2.characteristic
+                                AND LOWER(c1.value)=LOWER(c2.value);
+            """, phone_components)
+
+        # Проверка на дублирование телефона с совпадающими характеристиками
+        cur.execute("""WITH cte AS
+            (
+                SELECT nomination, price, component_id
+                FROM phone
+                JOIN phone_component USING(phone_id)
+                WHERE phone_id = ?
+            )
+            SELECT phone_id
+            FROM phone
+            JOIN phone_component USING(phone_id)
+            WHERE phone_id != ?
+                  AND (nomination, price, component_id) IN (SELECT * FROM cte)
+            GROUP BY phone_id
+            HAVING COUNT(*) = (SELECT COUNT(*) FROM cte);
+        """, (phone_id, phone_id))
+        
+        dublicate_phone_id = cur.fetchone()
+
+        if dublicate_phone_id:
+            cur.execute("""ROLLBACK;""")
+        else:
+            cur.execute("""COMMIT;""")
+
+        self.connect.commit()
+
+        if dublicate_phone_id:
+            return -1
+        
+        return phone_id
+
+
+
     def check_or_create_auth_tables(self):
         cur = self.connect.cursor()
 
@@ -132,6 +236,7 @@ class DB:
             ("storage", "объем хранилища"),
             ("cpu", "процессор"),
             ("color", "цвет"),
+            ("pricedrop", "уценка"),
         ]
         cur.executemany("""INSERT INTO characteristic(characteristic, descr) 
             SELECT val.column1 as characteristic, val.column2 as descr
@@ -168,9 +273,10 @@ class DB:
             phone_component_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             phone_id INTEGER NOT NULL,
             component_id INTEGER NOT NULL,
-            characteristic CHAR(16) NOT NULL UNIQUE,
+            characteristic CHAR(16) NOT NULL,
             FOREIGN KEY (phone_id) REFERENCES phone(phone_id),
-            FOREIGN KEY (component_id) REFERENCES component(component_id));
+            FOREIGN KEY (component_id) REFERENCES component(component_id),
+            UNIQUE(phone_id, characteristic));
             """)
         self.connect.commit()
 
