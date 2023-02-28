@@ -19,16 +19,18 @@ class DB:
             JOIN user_roles USING(login)
             JOIN role USING(role)
             WHERE login=? AND password=? AND exist;
-        """, login, password)
+        """, (login, password))
         records = cur.fetchall()
 
         roles = dict()
         for firstname, secondname, patronymic, role, descr in records:
-            role = roles.setdefault(role, dict())
-            role["firstname"] = firstname
-            role["secondname"] = secondname
-            role["patronymic"] = patronymic
-            role["description"] = descr
+            role_dict = roles.setdefault(role, dict())
+            role_dict["login"] = login
+            role_dict["firstname"] = firstname
+            role_dict["secondname"] = secondname
+            role_dict["patronymic"] = patronymic
+            role_dict["role"] = role
+            role_dict["description"] = descr
 
         return roles
 
@@ -276,7 +278,7 @@ class DB:
         cur.executemany("""INSERT INTO user_roles(login, role) 
             SELECT login, role
             FROM
-                (SELECT login, role, val.column3 as prefer
+                (SELECT login, role
                 FROM 
                 (
                     VALUES (?, ?)

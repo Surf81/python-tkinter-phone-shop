@@ -102,7 +102,7 @@ class MainFrame(tk.Frame):
 
 
 
-class ShopFrame(tk.Frame):
+class Shop(tk.Frame):
     def __init__(self, browser, database: DB, *args, **kwargs):
         super().__init__(browser, *args,
                          bd=4, 

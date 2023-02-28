@@ -28,7 +28,7 @@ class PhoneShopSettings(object):
     })
 
     def __init__(self, settings_file) -> None:
-        self._settings = self._defaultsettings
+        self._current_settings = self._defaultsettings
         self.__settings_file = settings_file
         self.__load_settings()
 
@@ -54,8 +54,8 @@ class PhoneShopSettings(object):
         except (FileNotFoundError, UnicodeDecodeError, json.decoder.JSONDecodeError):
             load_settings = dict()
 
-        self._settings = self.__compare(self._defaultsettings, load_settings)
+        self._current_settings = self.__compare(self._defaultsettings, load_settings)
         
     def __getattr__(self, name):
-        return self._settings.get(name, None)
+        return self._current_settings.get(name, None)
     

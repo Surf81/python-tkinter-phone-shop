@@ -1,5 +1,3 @@
-
-
 class User(object):
     default_user = {
         "login": None,
@@ -29,5 +27,22 @@ class User(object):
         if not roles:
             self.user = dict(self.default_user)
             return False
-        
         return roles
+    
+    def set_role(self, role=None):
+        if role:
+            self.user = {
+                "login": role["login"],
+                "firsname": role.get("firstname", ""),
+                "secondname": role.get("secondname", ""),
+                "patronymic": role.get("patronymic", ""),
+                "role": role["role"],
+                "role_descriptor": role["description"],
+            }
+        else:
+            self.user = dict(self.default_user)
+
+
+    @property
+    def role(self):
+        return self.user.get("role")
