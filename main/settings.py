@@ -7,6 +7,7 @@ DATA_PATH = BASE_DIR / APPNAME
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
 DATABASE = {
-    'NAME': BASE_DIR / 'db.sqlite3'
+    'SQLITE': BASE_DIR / 'db.sqlite3',
+    'JSON': BASE_DIR / 'phone_base.json',
 }
 

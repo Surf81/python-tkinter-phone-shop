@@ -8,16 +8,108 @@ class DB:
         self.check_or_create_phone_tables()
 
 
-        self.add_phone({
-            "nomination": "iPhone",
-            "price": 25000,
-            "components": {
-                "ram": "4 Gb",
-                "cpu": "A13",
-                "storage": "128 Gb",
-                "color": "black",
-            }
-        })
+    def close(self):
+        self.connect.close()
+
+
+    def get_user(self, login: str, password: str) -> dict:
+        cur = self.connect.cursor()
+        cur.execute("""SELECT firstname, secondname, patronymic, role, descr
+            FROM user
+            JOIN user_roles USING(login)
+            JOIN role USING(role)
+            WHERE login=? AND password=? AND exist;
+        """, login, password)
+        records = cur.fetchall()
+
+        roles = dict()
+        for firstname, secondname, patronymic, role, descr in records:
+            role = roles.setdefault(role, dict())
+            role["firstname"] = firstname
+            role["secondname"] = secondname
+            role["patronymic"] = patronymic
+            role["description"] = descr
+
+        return roles
+
+
+    def new_user(self, userdata: dict) -> dict:
+        cur = self.connect.cursor()
+        cur.execute("""INSERT INTO user(login, password, firstname, secondname, patronymic)
+            SELECT login, 
+                   val.column2 as password, 
+                   val.column3 as firstname, 
+                   val.column4 as secondname, 
+                   val.column5 as patronymic
+            FROM 
+            (
+                VALUES(?, ?, ?, ?, ?)
+            ) val
+            LEFT JOIN 
+                user ON login=val.column1
+            WHERE login IS NULL
+            RETURNING *
+        """, (userdata["login"],
+              userdata["password"],
+              userdata.get("firstname", ""),
+              userdata.get("secondname", ""),
+              userdata.get("patronymic", "")))
+        records = cur.fetchone()
+
+        if not records:
+            return {}
+        
+        newuser = (
+            userdata["login"],
+            "user",
+        )
+        cur.execute("""INSERT INTO user_role(login, role)
+        SELECT ?, ?
+        FROM
+        (
+            VALUES(?)
+        );""", newuser)
+        self.connect.commit()
+
+        return self.get_user(userdata["login"], userdata["password"])
+
+
+    def load_content(self):
+        content = dict()
+
+        cur = self.connect.cursor()
+        cur.execute("""SELECT phone_id, nomination, price, c1.characteristic, c1.descr, c2.value
+            FROM phone
+            JOIN phone_component USING(phone_id)
+            JOIN component c2 USING(component_id)
+            JOIN characteristic c1 ON c1.characteristic=c2.characteristic
+            ORDER BY nomination, price;
+        """)
+        records = cur.fetchall()
+
+        for phone_id, nomination, price, characteristic, descr, value in records:
+            phone = content.setdefault(phone_id, dict())
+            phone["nomination"] = nomination
+            phone["price"] = price
+            components = phone.setdefault("components", dict())
+            components[characteristic] = (descr, value)
+
+        return content
+
+    def add_characteristic(self, content: dict) -> None:
+        cur = self.connect.cursor()
+
+        params = tuple((characteristic.strip().lower(), descr.strip()) for characteristic, descr in content.items())
+        cur.executemany("""INSERT INTO characteristic(characteristic, descr) 
+            SELECT val.column1 as characteristic, val.column2 as descr
+            FROM 
+            (
+                VALUES (?, ?)
+            ) val
+            LEFT JOIN characteristic ON characteristic=val.column1
+            WHERE characteristic IS NULL;    
+            """, params)
+        self.connect.commit()        
 
 
     def add_phone(self, content: dict) -> int:
@@ -61,7 +153,6 @@ class DB:
             RETURNING phone_id;
             """, (content["nomination"], content["price"]))
         phone_id = cur.fetchone()[0]
-        print("phone_id: ", phone_id)
 
         # Настройка компонентов телефона
         phone_components = tuple((phone_id, characteristic, value) for characteristic, value in components)
@@ -118,7 +209,7 @@ class DB:
         # Если таблица ролей отсутствует, то она будет создана
         cur.execute("""CREATE TABLE IF NOT EXISTS role(
             role CHAR(5) PRIMARY KEY NOT NULL,
-            descr CHAR(16) NOT NULL);
+            descr CHAR(24) NOT NULL);
             """)
         self.connect.commit()
 
@@ -146,7 +237,7 @@ class DB:
             firstname CHAR(50),
             secondname CHAR(50),
             patronymic CHAR(50),
-            exist BOOLEAN NOT NULL);
+            exist BOOLEAN NOT NULL DEFAULT 1);
             """)
         self.connect.commit()
 
@@ -171,7 +262,6 @@ class DB:
             user_roles_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             login CHAR(16) NOT NULL,
             role CHAR(5) NOT NULL,
-            prefer BOOLEAN NOT NULL,
             FOREIGN KEY (login) REFERENCES user(login) ON DELETE CASCADE,
             FOREIGN KEY (role) REFERENCES role(role) ON DELETE CASCADE,
             UNIQUE(login, role));
@@ -180,16 +270,16 @@ class DB:
 
         # Добавление прав для записи администратора, если отсутствуют
         alailable_roles = [
-            ("admin", "admin", 1),
-            ("admin", "user", 0),
+            ("admin", "admin"),
+            ("admin", "user"),
         ]
-        cur.executemany("""INSERT INTO user_roles(login, role, prefer) 
-            SELECT login, role, s.prefer
+        cur.executemany("""INSERT INTO user_roles(login, role) 
+            SELECT login, role
             FROM
                 (SELECT login, role, val.column3 as prefer
                 FROM 
                 (
-                    VALUES (?, ?, ?)
+                    VALUES (?, ?)
                 ) val
                 JOIN user ON login=val.column1
                 JOIN role ON role=val.column2) s
@@ -201,15 +291,15 @@ class DB:
 
         # Всем пользователям без каких-либо ролей проставляем роль user
         user_roles = [
-            ("user", 1),
+            ("user",),
         ]
-        cur.executemany("""INSERT INTO user_roles(login, role, prefer) 
-            SELECT login, s.role, s.prefer
+        cur.executemany("""INSERT INTO user_roles(login, role) 
+            SELECT login, s.role
             FROM
-                (SELECT login, role, val.column2 as prefer
+                (SELECT login, role
                 FROM 
                 (
-                    VALUES (?, ?)
+                    VALUES (?)
                 ) val
                 JOIN role ON role=val.column1
                 CROSS JOIN user) s
@@ -230,13 +320,11 @@ class DB:
             """)
         self.connect.commit()
 
-        # Если типы параметров отсутствуют, они будут добавлены
+        # Если дефолтные типы параметров отсутствуют, они будут добавлены
         params = [
             ("ram", "объем ОЗУ"),
             ("storage", "объем хранилища"),
             ("cpu", "процессор"),
-            ("color", "цвет"),
-            ("pricedrop", "уценка"),
         ]
         cur.executemany("""INSERT INTO characteristic(characteristic, descr) 
             SELECT val.column1 as characteristic, val.column2 as descr
