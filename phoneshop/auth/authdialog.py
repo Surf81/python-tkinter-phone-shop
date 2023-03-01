@@ -1,15 +1,26 @@
+import string
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
+from tkinter import font
 
 
-class AuthDialog():
+class AuthDialog:
     WIDTH = 400
-    HEIGHT = 170
+    HEIGHT = 190
 
     def __init__(self, master, user):
         self.master = master
+        self.dialog_window = None
         self.user = user
+        self.params = dict()
+        self.widgets = dict()
 
+    def __widgets_append(self, widgetname, widget, grid):
+        self.widgets[widgetname] = {
+            "widget": widget,
+            "grid": grid,
+        }
 
     @staticmethod
     def __character_limit(entry_text, length):
@@ -17,69 +28,278 @@ class AuthDialog():
             entry_text.set(entry_text.get()[:length])
 
 
-    def open_dialog(self):
-        def log_with_role(role):
-            self.user.set_role(role)
-            self.master.event_generate("<<UserChange>>")
-            auth.destroy()
+    def __is_valid_login(self, newval):
+        valid_chars = string.ascii_letters + string.digits + '_'
+        for char in newval:
+            if char not in valid_chars:
+                self.params["error"].set("только символы английского алфавита,\nцифры и знак '_'")
+                return False
+        self.params["error"].set("")            
+        return True
+
+    def __is_valid_password(self, newval):
+        valid_chars = string.ascii_letters + string.digits + '_!#$%^{}[]():|'
+        for char in newval:
+            if char not in valid_chars:
+                self.params["error"].set("только символы английского алфавита,\nцифры и символы _!#$%^{}[]():| ")
+                return False
+        self.params["error"].set("")            
+        return True
 
 
-        def logon():
-            roles = self.user.logon(login_text.get(), password_text.get())
+    def logon_dialog(self):
+        self.dialog_window = tk.Toplevel(self.master)    
+        win = self.dialog_window
 
-            if roles:
-                login_widget.config(state=tk.DISABLED)
-                password_widget.config(state=tk.DISABLED)
-                btn_logon.grid_forget()
-                if len(roles) == 1:
-                    self.user.set_role(roles.values()[0])
-                    self.master.event_generate("<<UserChange>>")
-                    auth.destroy()
-                else:
-                    auth.geometry("{}x{}".format(self.WIDTH, self.HEIGHT+30))
-                    roles = {item["description"]: item for _, item in roles.items()}
+        win.wm_title("Авторизация")
+        win.resizable(False, False)
+        # auth.overrideredirect(True) # Режим работы без отдельного окна
+        win.tkraise(self.master)
+        win.grab_set()
 
-                    tk.Label(auth, text="Войти с ролью: ").grid(row=3, column=0, padx=[40,10], pady=[10,0], sticky="W")
-                    select_text = tk.StringVar()
-                    select_widget = ttk.Combobox(auth, values=list(roles.keys()), textvariable=select_text)
-                    select_widget.grid(row=3, column=1, padx=[10,40], pady=[10,0], sticky="WE")
-                    select_widget.bind("<<ComboboxSelected>>", lambda event: btn_select.config(state=tk.NORMAL))
+        tk.Grid.columnconfigure(win, 0, weight=1)
+        tk.Grid.columnconfigure(win, 1, weight=1)
 
-                    btn_select = ttk.Button(auth, text="Войти с ролью", command=lambda: log_with_role(roles[select_text.get()]), state=tk.DISABLED)
-                    btn_select.grid(row=11, column=0, columnspan=2, pady=[10, 30])
+        for param in ("login", "password", "error", "select", "fname", "sname", "pname"):
+            self.params[param] = tk.StringVar()
+
+        # Контроль длины введенных строк
+        self.params["login"].trace("w", lambda *args: self.__character_limit(self.params["login"], 16))
+        self.params["password"].trace("w", lambda *args: self.__character_limit(self.params["password"], 16))
+        self.params["fname"].trace("w", lambda *args: self.__character_limit(self.params["fname"], 50))
+        self.params["sname"].trace("w", lambda *args: self.__character_limit(self.params["sname"], 50))
+        self.params["pname"].trace("w", lambda *args: self.__character_limit(self.params["pname"], 50))
+
+        self.check_login = (win.register(self.__is_valid_login), "%P")
+        self.check_password = (win.register(self.__is_valid_password), "%P")
+
+        self.__logon_dialog()
 
 
-            if not roles:
-                error_widget.config(text="комбинация Логин/пароль не обнаружена")
+    def __set_window_size(self, width, height):
+        self.__destroy_widgets()
+
+        trans_x = (self.master.winfo_screenwidth() - width) // 2
+        trans_y = (self.master.winfo_screenheight() - height) // 2 - 50
+        self.dialog_window.geometry(
+            "{}x{}+{}+{}".format(width, height, trans_x, trans_y)
+        )
+
+    def __destroy_widgets(self):
+        for widget in self.widgets.values():
+            widget["widget"].destroy()
+        self.widgets = dict()
 
 
-        auth = tk.Toplevel(self.master)
-        auth.wm_title("Авторизация")
+    def __show_widgets(self):
+        for widget in self.widgets.values():
+            widget["widget"].grid(**widget["grid"])
 
-        tk.Grid.columnconfigure(auth, 0, weight=1)
-        tk.Grid.columnconfigure(auth, 1, weight=1)
 
-        trans_x = (self.master.winfo_screenwidth() - self.WIDTH) // 2 
-        trans_y = (self.master.winfo_screenheight() - self.HEIGHT) // 2 - 200 
-        auth.geometry("{}x{}+{}+{}".format(self.WIDTH, self.HEIGHT, trans_x, trans_y))
-        
-        tk.Label(auth, text="Логин: ").grid(row=0, column=0, padx=[40,10], pady=[30,0], sticky="W")
-        login_text = tk.StringVar()
-        login_widget = tk.Entry(auth, width=16, textvariable=login_text)
-        login_widget.grid(row=0, column=1, padx=[10,40], pady=[30,0], sticky="WE")
-        
-        tk.Label(auth, text="Пароль: ").grid(row=1, column=0, padx=[40,10], pady=[10,0], sticky="W")
-        password_text = tk.StringVar()
-        password_widget = tk.Entry(auth, show="*", width=16, textvariable=password_text)
-        password_widget.grid(row=1, column=1, padx=[10,40], pady=[10,0], sticky="WE")
-        
-        error_widget = tk.Label(auth, fg="red")
-        error_widget.grid(row=2, column=0, columnspan=2, padx=40)
+    def __add_login_password(self):
+        win = self.dialog_window
+        bold_font = font.Font(weight="bold")
 
-        btn_logon = ttk.Button(auth, text="Войти / Зарегистрироваться", command=logon)
-        btn_logon.grid(row=10, column=0, columnspan=2, pady=[10, 30])
+        self.__widgets_append(
+            "lbl1",
+            tk.Label(win, text="Логин*:", font=bold_font),
+            dict(row=0, column=0, padx=[40, 10], pady=[30, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "login",
+            tk.Entry(win, width=16, textvariable=self.params["login"], validate="key", validatecommand=self.check_login),
+            dict(row=0, column=1, padx=[10, 40], pady=[30, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "lbl2",
+            tk.Label(win, text="Пароль*:", font=bold_font),
+            dict(row=1, column=0, padx=[40, 10], pady=[10, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "password",
+            tk.Entry(win, show="*", width=16, textvariable=self.params["password"], validate="key", validatecommand=self.check_password),
+            dict(row=1, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "error",
+            tk.Label(win, fg="red", textvariable=self.params["error"], height=2),
+            dict(row=2, column=0, columnspan=2, padx=40),
+        )
+        self.widgets["login"]["widget"].focus_set()
 
-        login_text.trace("w", lambda *args: self.__character_limit(login_text, 16))
-        password_text.trace("w", lambda *args: self.__character_limit(password_text, 16))
 
-        login_widget.focus_set()
+    def __logon_dialog(self):
+        win = self.dialog_window
+        self.__set_window_size(self.WIDTH, self.HEIGHT)
+        self.__add_login_password()
+
+        self.__widgets_append(
+            "btn_logon",
+            ttk.Button(win, text="Войти / Зарегистрироваться", command=self.__logon),
+            dict(row=10, column=0, columnspan=2, pady=[10, 30]),
+        )
+
+        self.__show_widgets()
+
+
+    def __logon_with_role_dialog(self):
+        win = self.dialog_window
+        self.__set_window_size(self.WIDTH, self.HEIGHT)
+
+        login = self.params["login"].get()
+        password = self.params["password"].get()
+        roles = self.user.logon(login, password)
+        roles = {item["description"]: item for _, item in roles.items()}
+
+        #Добро пожаловать
+
+        name = list(roles.values())[0].get("secondname", "") or list(roles.values())[0].get("login", "")
+
+        self.__widgets_append(
+            "lbl1",
+            tk.Label(win, text="Добро пожаловать, {}!".format(name), fg="red"),
+            dict(row=0, column=0, padx=[40, 10], pady=[30, 20], sticky="W"),
+        )
+        self.__widgets_append(
+            "lbl3",
+            tk.Label(win, text="Выбрать роль:"),
+            dict(row=3, column=0, padx=[40, 10], pady=[10, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "select",
+            ttk.Combobox(win, values=list(roles.keys()), textvariable=self.params["select"]),
+            dict(row=3, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "btn_logon",
+            ttk.Button(
+                        win,
+                        text="Войти",
+                        command=lambda: self.__logon_with_role(roles[self.params["select"].get()]),
+                        state=tk.DISABLED,
+                    ),
+            dict(row=12, column=0, columnspan=2, pady=[30, 30]),
+        )
+        self.widgets["select"]["widget"].bind(
+                        "<<ComboboxSelected>>",
+                        lambda event: self.widgets["btn_logon"]["widget"].config(state=tk.NORMAL),
+                    )
+
+        self.__show_widgets()
+
+
+    def __logon_or_register_dialog(self):
+        win = self.dialog_window
+
+        self.params["error"].set("комбинация логин/пароль не обнаружена")
+
+        self.__set_window_size(self.WIDTH, self.HEIGHT + 100)
+        self.__add_login_password()
+
+        self.__widgets_append(
+            "lbl3",
+            tk.Label(win, text="Фамилия:"),
+            dict(row=3, column=0, padx=[40, 10], pady=[10, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "fname",
+            tk.Entry(win, width=16, textvariable=self.params["fname"]),
+            dict(row=3, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "lbl4",
+            tk.Label(win, text="Имя:"),
+            dict(row=4, column=0, padx=[40, 10], pady=[10, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "sname",
+            tk.Entry(win, width=16, textvariable=self.params["sname"]),
+            dict(row=4, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "lbl5",
+            tk.Label(win, text="Отчество:"),
+            dict(row=5, column=0, padx=[40, 10], pady=[10, 0], sticky="W"),
+        )
+        self.__widgets_append(
+            "pname",
+            tk.Entry(win, width=16, textvariable=self.params["pname"]),
+            dict(row=5, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
+        )
+        self.__widgets_append(
+            "btn_logon",
+            ttk.Button(win, text="Войти", command=self.__logon),
+            dict(row=10, column=0, padx=[40, 5], pady=[20, 30], sticky="E"),
+        )
+        self.__widgets_append(
+            "btn_reg",
+            ttk.Button(win, text="Зарегистрироваться", command=self.__create_user),
+            dict(row=10, column=1, padx=[5, 40], pady=[20, 30], sticky="W"),
+        )
+
+        self.__show_widgets()
+
+
+    def __logon(self):
+        win = self.dialog_window
+        login = self.params["login"].get()
+        password = self.params["password"].get()
+
+        if not (login and password):
+                self.params["error"].set("логин и пароль должны быть заполнены")
+                self.__logon_dialog()
+                return
+
+        roles = self.user.logon(login, password)
+
+        if roles:
+            if len(roles) == 1:
+                self.user.set_role(list(roles.values())[0])
+                self.master.event_generate("<<UserChange>>")
+                win.destroy()
+            else:
+                self.__logon_with_role_dialog()
+        else:
+            if not self.user.is_free_login(login):
+                self.params["error"].set("пароль не верный")
+                self.__logon_dialog()
+            else:
+                self.__logon_or_register_dialog()
+
+
+    def __logon_with_role(self, role):
+        self.user.set_role(role)
+        self.master.event_generate("<<UserChange>>")
+        self.dialog_window.destroy()
+
+
+    def __create_user(self):
+        login = self.params["login"].get().strip()
+        password = self.params["password"].get().strip()
+
+        if not (login and password):
+                self.params["error"].set("логин и пароль должны быть заполнены")
+                self.__logon_dialog()
+                return
+        if not self.user.is_free_login(login):
+            self.__logon()
+            return
+
+        roles = self.user.new_user({
+            "login": login,
+            "password": password,
+            "firstname": self.params["fname"].get().strip(),
+            "secondname": self.params["sname"].get().strip(),
+            "patronymic": self.params["pname"].get().strip(),
+        })
+        role = list(roles.values())[0]
+        self.user.set_role(role)
+        self.master.event_generate("<<UserChange>>")
+        self.dialog_window.destroy()
+
+
+
+
+
+
+

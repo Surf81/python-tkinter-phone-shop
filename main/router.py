@@ -1,18 +1,24 @@
+from functools import wraps
 from typing import *
 
 class Router(object):
-    def __init__(self, master):
-        self.master = master
+    def __init__(self):
         self.routers = dict()
         self.history = None
 
     def __call__(self, label) -> Callable:
-        router = self.routers.get(label, None)
-        if not router:
-            return
-        if router.get("history"):
-            self.history = router.get("command")
-        return router.get("command")
+        if self.routers.get(label):
+            return self.__call_function_control(label)
+
+    def __call_function_control(self, label):
+        @wraps(self.routers[label].get("command"))
+        def wrapper(*args, **kwargs):
+            router = self.routers[label]
+            if router["history"]:
+                self.history = label
+            return router["command"](*args, **kwargs)
+
+        return wrapper
 
 
     def register_rout(self, label, command, history=False):
@@ -20,6 +26,8 @@ class Router(object):
         router["command"] = command
         router["history"] = history
 
-    def refresh(self):
+
+    def refresh_event(self, event):
+        self.__call__("refresh")()
         if self.history:
-            self.history()
+            self.__call__(self.history)()

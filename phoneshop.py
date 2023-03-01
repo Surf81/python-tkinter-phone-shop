@@ -8,13 +8,12 @@ from phoneshop.db.loadbase import load_phone_base
 
 
 
-database = DB(DATABASE['SQLITE'])
-user = User(database)
-rules = AccessRules(user)
-
-# Первичное наполнение базы данных
-# # load_phone_base()
-
-
 if __name__ == "__main__":
+    database = DB(DATABASE['SQLITE'])
+    user = User(database)
+    rules = AccessRules(user)
+
+    # Первичное наполнение базы данных
+    # # load_phone_base()
+
     browser = Browser(database, user, rules)

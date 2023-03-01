@@ -19,16 +19,21 @@ class User(object):
         if not roles:
             self.user = dict(self.default_user)
             return False
-        
         return roles
 
-    def registation(self, userdata):
+
+    def new_user(self, userdata):
         roles = self.db.new_user(userdata)
         if not roles:
             self.user = dict(self.default_user)
             return False
         return roles
     
+
+    def is_free_login(self, login):
+        return self.db.is_free_login(login)
+    
+
     def set_role(self, role=None):
         if role:
             self.user = {

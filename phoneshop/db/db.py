@@ -12,6 +12,15 @@ class DB:
         self.connect.close()
 
 
+    def is_free_login(self, login):
+        cur = self.connect.cursor()
+        cur.execute("""SELECT login
+            FROM user
+            WHERE login=?;
+        """, (login,))
+        return not cur.fetchone()
+
+
     def get_user(self, login: str, password: str) -> dict:
         cur = self.connect.cursor()
         cur.execute("""SELECT firstname, secondname, patronymic, role, descr
@@ -38,7 +47,7 @@ class DB:
     def new_user(self, userdata: dict) -> dict:
         cur = self.connect.cursor()
         cur.execute("""INSERT INTO user(login, password, firstname, secondname, patronymic)
-            SELECT login, 
+            SELECT val.column1 as login, 
                    val.column2 as password, 
                    val.column3 as firstname, 
                    val.column4 as secondname, 
@@ -50,7 +59,7 @@ class DB:
             LEFT JOIN 
                 user ON login=val.column1
             WHERE login IS NULL
-            RETURNING *
+            RETURNING *;
         """, (userdata["login"],
               userdata["password"],
               userdata.get("firstname", ""),
@@ -65,12 +74,13 @@ class DB:
             userdata["login"],
             "user",
         )
-        cur.execute("""INSERT INTO user_role(login, role)
-        SELECT ?, ?
+        cur.execute("""INSERT INTO user_roles(login, role)
+        SELECT val.column1 as login, val.column2 as role
         FROM
         (
-            VALUES(?)
-        );""", newuser)
+            VALUES(?, ?)
+        ) val;
+        """, newuser)
         self.connect.commit()
 
         return self.get_user(userdata["login"], userdata["password"])

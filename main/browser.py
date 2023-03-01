@@ -21,28 +21,31 @@ class Browser(object):
         self.menu = None
         self.pages = dict()
         self.__create_pages()
+        self.__base_init()
         self.__init()
         self.window.mainloop()
 
 
-    @staticmethod
-    def __clear_window(master):
+    def __clear_window(self, master):
         for el in master.winfo_children():
             el.destroy()
 
 
     def __create_pages(self):
-        self.pages["auth"] = AuthDialog(self.window, self.user)
+        self.pages["logon"] = AuthDialog(self.window, self.user)
         self.pages["shop"] = Shop(self.window, self.db)
 
 
-    def __init(self):
-        self.__clear_window(self.window)
+    def __base_init(self):
+        # self.__clear_window(self.window)
         self.__load_settings()
         self.__create_router()
-        self.__create_menu()
         self.__create_virtual_events()
         self.__create_environment()
+
+
+    def __init(self):
+        self.__create_menu()
 
     refresh = __init
 
@@ -52,10 +55,11 @@ class Browser(object):
 
     def __create_router(self):
         if not self.router:
-            self.router = Router(self.window)
+            self.router = Router()
             self.router.register_rout("refresh", self.refresh)
-            self.router.register_rout("shop", self.pages["shop"].run)
-            self.router.register_rout("auth", self.pages["auth"].open_dialog)
+            self.router.register_rout("shop", self.pages["shop"].run, history=True)
+            self.router.register_rout("logon", self.pages["logon"].logon_dialog)
+            self.router.register_rout("changeuser", self.pages["logon"].logon_dialog)
             self.router.register_rout("quit", self.window.destroy)
 
     def __create_menu(self):
@@ -69,7 +73,7 @@ class Browser(object):
 
     def __create_virtual_events(self):
         self.window.event_add("<<UserChange>>", "None")
-        self.window.bind("<<UserChange>>", self.router.refresh,"%d")
+        self.window.bind("<<UserChange>>", self.router.refresh_event,"%d")
 
 
     def __create_environment(self):
