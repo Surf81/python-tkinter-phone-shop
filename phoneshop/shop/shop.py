@@ -37,15 +37,37 @@ class PhoneItem(tk.Frame):
 
 
 class TopBar(tk.Frame):
-    def __init__(self, browser, *args, **kwargs):
+    def __init__(self, browser, user, *args, **kwargs):
         super().__init__(browser, *args, **kwargs)
+        self.user = user
+        self.login_lbl = None
+        self.role_lbl = None
         self.__create_form()
-    
-    def __create_form(self):
-        tk.Grid.columnconfigure(self, 0, weight=1)
 
-        ttk.Label(self, text="Корзина", font="Arial 15 bold").grid(row=0, column=0, padx=5, pady=5, sticky="E")
-        ttk.Separator(self, orient=tk.HORIZONTAL).grid(row=1, column=0, pady=[20, 0], sticky="WE")
+    def __create_form(self):
+        tk.Grid.columnconfigure(self, 1, weight=1)
+
+        ttk.Label(self, text="Текущий пользователь:").grid(
+            row=0, column=0, pady=[10,0], padx=[20,5], sticky="w"
+        )
+        ttk.Label(self, text="Уровень доступа:").grid(
+            row=1, column=0, padx=[20,5], sticky="w"
+        )
+        self.login_lbl = tk.Label(self, text=self.user.user["login"], fg="red")
+        self.login_lbl.grid(
+            row=0, column=1, pady=[10,0], sticky="w"
+        )
+        self.role_lbl = tk.Label(self, text=self.user.user["role_descriptor"], fg="red")
+        self.role_lbl.grid(
+            row=1, column=1, sticky="w"
+        )
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            row=2, column=0, columnspan=2, pady=[10, 0], sticky="WE"
+        )
+
+    def refresh(self):
+        self.login_lbl.config(text=self.user.user["login"])
+        self.role_lbl.config(text=self.user.user["role_descriptor"])
 
 
 class SideBar(tk.Frame):
@@ -97,21 +119,21 @@ class MainFrame(tk.Frame):
             row += 1
 
     def onFrameConfigure(self, event):
-        '''Reset the scroll region to encompass the inner frame'''
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
 
 
-class Shop(tk.Frame):
-    def __init__(self, browser, database: DB, *args, **kwargs):
-        super().__init__(browser, *args,
-                         bd=4, 
-                         relief=tk.GROOVE, 
-                         **kwargs)
+class Shop(object):
+    def __init__(self, browser, database: DB, access, user):
+        self.master = browser
+        self.window = tk.Frame(self.master)
         self.db = database
+        self.access = access
+        self.user = user
+        self.widgets = dict()
         self.content = dict()
-        self.refresh_content()
 
+        self.refresh_content()
         self.__create_form()
 
 
@@ -120,16 +142,25 @@ class Shop(tk.Frame):
 
 
     def __create_form(self):
-        tk.Grid.columnconfigure(self, 0, weight=1, minsize=200)
-        tk.Grid.columnconfigure(self, 1, weight=15)
-        tk.Grid.rowconfigure(self, 1, weight=1)
+        win = self.window
+        tk.Grid.columnconfigure(win, 0, weight=1, minsize=200)
+        tk.Grid.columnconfigure(win, 1, weight=15)
+        tk.Grid.rowconfigure(win, 1, weight=1)
 
-        TopBar(self).grid(row=0, column=0, columnspan=2, sticky="WE")
-        SideBar(self).grid(row=1, column=0, sticky="WENS")
-        MainFrame(self, self.content).grid(row=1, column=1, sticky="WENS")
+        self.widgets["topbar"] = TopBar(win, self.user)
+        self.widgets["topbar"].grid(row=0, column=0, columnspan=2, sticky="WE")
+        self.widgets["sidebar"] = SideBar(win)
+        self.widgets["sidebar"].grid(row=1, column=0, sticky="WENS")
+        self.widgets["mainframe"] = MainFrame(win, self.content)
+        self.widgets["mainframe"].grid(row=1, column=1, sticky="WENS")
 
 
+    def __clear_browser(self):
+        for item in self.master.grid_slaves():
+            item.grid_forget()
 
 
     def run(self):
-        self.grid(sticky="WENS")
+        self.__clear_browser()
+        self.widgets["topbar"].refresh()
+        self.window.grid(sticky="WENS")

@@ -1,6 +1,7 @@
 from functools import wraps
 from typing import *
 
+
 class Router(object):
     def __init__(self):
         self.routers = dict()
@@ -31,3 +32,19 @@ class Router(object):
         self.__call__("refresh")()
         if self.history:
             self.__call__(self.history)()
+
+
+
+class PageRunner(object):
+    def __init__(self):
+        self.page = None
+
+
+    def set_page(self, page):
+        self.page = page
+
+
+    def run(self):
+        if self.page:
+            self.page.run()
+

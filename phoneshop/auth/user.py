@@ -1,3 +1,5 @@
+import tkinter as tk
+
 class User(object):
     default_user = {
         "login": None,
@@ -8,19 +10,16 @@ class User(object):
         "role_descriptor": "Не зарегистрирован",
     }
 
-
     def __init__(self, database):
         self.user = dict(self.default_user)
         self.db = database
 
-
     def logon(self, login, password):
-        roles = self.db.get_user(login, password)
+        roles = self.db.check_user(login, password)
         if not roles:
             self.user = dict(self.default_user)
             return False
         return roles
-
 
     def new_user(self, userdata):
         roles = self.db.new_user(userdata)
@@ -28,11 +27,9 @@ class User(object):
             self.user = dict(self.default_user)
             return False
         return roles
-    
 
     def is_free_login(self, login):
         return self.db.is_free_login(login)
-    
 
     def set_role(self, role=None):
         if role:
@@ -46,7 +43,6 @@ class User(object):
             }
         else:
             self.user = dict(self.default_user)
-
 
     @property
     def role(self):

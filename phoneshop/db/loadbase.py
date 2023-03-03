@@ -1,5 +1,5 @@
 import json
-from main.settings import DATABASE
+from core.settings import DATABASE
 from phoneshop.db.db import DB
 
 

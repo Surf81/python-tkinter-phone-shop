@@ -1,6 +1,9 @@
-class AccessRules(object):
+class Access(object):
     rules = {
         "adminmenu": {
+            "admin": True
+        },
+        "adminpage": {
             "admin": True
         },
         "logon": {
