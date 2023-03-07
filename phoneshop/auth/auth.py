@@ -28,7 +28,7 @@ class Auth:
         if len(entry_text.get()) > 0:
             entry_text.set(entry_text.get()[:length])
 
-    def __is_valid_login(self, newval):
+    def __validate_login(self, newval):
         valid_chars = string.ascii_letters + string.digits + "_"
         for char in newval:
             if char not in valid_chars:
@@ -39,7 +39,7 @@ class Auth:
         self.params["error"].set("")
         return True
 
-    def __is_valid_password(self, newval):
+    def __validate_password(self, newval):
         valid_chars = string.ascii_letters + string.digits + "_!#$%^{}[]():|"
         for char in newval:
             if char not in valid_chars:
@@ -97,8 +97,8 @@ class Auth:
             "w", lambda *args: self.__character_limit(self.params["pname"], 50)
         )
 
-        self.check_login = (win.register(self.__is_valid_login), "%P")
-        self.check_password = (win.register(self.__is_valid_password), "%P")
+        self.check_login = (win.register(self.__validate_login), "%P")
+        self.check_password = (win.register(self.__validate_password), "%P")
 
         self.__logon_dialog()
 
@@ -123,6 +123,8 @@ class Auth:
     def __add_login_password(self):
         win = self.dialog_window
         bold_font = font.Font(weight="bold")
+
+        error = self.params["error"].get()
 
         self.__widgets_append(
             "lbl1",
@@ -163,6 +165,7 @@ class Auth:
             dict(row=2, column=0, columnspan=2, padx=40),
         )
         self.widgets["login"]["widget"].focus_set()
+        self.params["error"].set(error)
 
     def __logon_dialog(self):
         win = self.dialog_window
@@ -243,7 +246,7 @@ class Auth:
         )
         self.__widgets_append(
             "fname",
-            tk.Entry(win, width=50, textvariable=self.params["fname"]),
+            tk.Entry(win, textvariable=self.params["fname"]),
             dict(row=3, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
         )
         self.__widgets_append(
@@ -253,7 +256,7 @@ class Auth:
         )
         self.__widgets_append(
             "sname",
-            tk.Entry(win, width=50, textvariable=self.params["sname"]),
+            tk.Entry(win, textvariable=self.params["sname"]),
             dict(row=4, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
         )
         self.__widgets_append(
@@ -263,7 +266,7 @@ class Auth:
         )
         self.__widgets_append(
             "pname",
-            tk.Entry(win, width=50, textvariable=self.params["pname"]),
+            tk.Entry(win, textvariable=self.params["pname"]),
             dict(row=5, column=1, padx=[10, 40], pady=[10, 0], sticky="WE"),
         )
         self.__widgets_append(
@@ -300,7 +303,7 @@ class Auth:
                 self.__logon_with_role_dialog()
         else:
             if not self.user.is_free_login(login):
-                self.params["error"].set("пароль не верный")
+                self.params["error"].set("пароль не верный или пользователь заблокирован")
                 self.__logon_dialog()
             else:
                 self.__logon_or_register_dialog()

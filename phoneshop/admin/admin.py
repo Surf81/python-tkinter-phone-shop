@@ -3,7 +3,7 @@ from tkinter import ttk
 
 from core.router import PageRunner, Router
 from phoneshop.admin.useradmin import UserAdminFrame
-from phoneshop.admin.phoneadmin import CharactAdminFrame, PhoneAdminFrame
+from phoneshop.admin.phoneadmin import PhoneAdminFrame
 
 
 class Admin(object):
@@ -43,14 +43,12 @@ class Admin(object):
 
     def __create_router(self):
         self.router = Router()
-        self.router.register_rout("user", self.pages["user"].run)
-        self.router.register_rout("characteristic", self.pages["characteristic"].run)
-        self.router.register_rout("phone", self.pages["phone"].run)
+        self.router.register_rout("user", self.pages["user"].launch("run"))
+        self.router.register_rout("phone", self.pages["phone"].launch("run"))
 
     def __create_pages(self):
         win = self.widgets["mainframe"]
         self.pages["user"].set_page(UserAdminFrame(win, self.db, self.user))
-        self.pages["characteristic"].set_page(CharactAdminFrame(win, self.db))
         self.pages["phone"].set_page(PhoneAdminFrame(win, self.db))
 
     def __clear_browser(self):
@@ -134,9 +132,6 @@ class SideBar(tk.Frame):
         ttk.Button(menuframe, text="Пользователи", command=self.router("user")).grid(
             row=2, column=0, sticky="WE"
         )
-        ttk.Button(
-            menuframe, text="Характеристики", command=self.router("characteristic")
-        ).grid(row=5, column=0, sticky="WE")
         ttk.Button(menuframe, text="Телефоны", command=self.router("phone")).grid(
             row=6, column=0, sticky="WE"
         )

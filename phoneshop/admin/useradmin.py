@@ -12,7 +12,7 @@ class UserAdminFrame(object):
         self.db = database
         self.user = user
         self.window = tk.Frame(self.master)
-        self.list = None
+        self.table = None
         self.params = dict()
         self.widgets = dict()
         self.form = tk.Frame(self.window)
@@ -25,19 +25,19 @@ class UserAdminFrame(object):
         tk.Grid.rowconfigure(win, 0, weight=1)
         tk.Grid.rowconfigure(win, 1, weight=2)
 
-        self.__create_list()
+        self.__create_table()
         self.__create_bottom_form()
 
-    def __on_list_click(self, event):
-        item = self.list.identify("item", event.x, event.y)
-        login = self.list.item(item, "text")
+    def __on_table_click(self, event):
+        item = self.table.identify("item", event.x, event.y)
+        login = self.table.item(item, "text")
         if login:
             self.__load_data_in_form(login)
 
-    def __refresh_list(self):
-        list = self.list
-        for item in list.get_children():
-            list.delete(item)
+    def __refresh_table(self):
+        table = self.table
+        for item in table.get_children():
+            table.delete(item)
 
         all_users = self.db.get_user_list()
         for count, user in enumerate(all_users.values(), start=1):
@@ -47,32 +47,32 @@ class UserAdminFrame(object):
                 ", ".join(user["role"].values()),
                 "Активный" if user["exist"] else "Удалён",
             )
-            list.insert("", tk.END, values=item, text=user["login"])
+            table.insert("", tk.END, values=item, text=user["login"])
 
-    def __create_list(self):
+    def __create_table(self):
         win = self.window
         columns = ("count", "login", "roles", "exist")
-        self.list = ttk.Treeview(win, columns=columns, show="headings")
-        self.list.grid(row=0, column=0, sticky="nsew")
+        self.table = ttk.Treeview(win, columns=columns, show="headings", selectmode="browse")
+        self.table.grid(row=0, column=0, sticky="nsew")
 
-        list = self.list
-        list.heading("count", text="№ п/п", anchor="w")
-        list.heading("login", text="Логин", anchor="w")
-        list.heading("roles", text="Права доступа", anchor="w")
-        list.heading("exist", text="Состояние", anchor="w")
+        table = self.table
+        table.heading("count", text="№ п/п", anchor="w")
+        table.heading("login", text="Логин", anchor="w")
+        table.heading("roles", text="Права доступа", anchor="w")
+        table.heading("exist", text="Состояние", anchor="w")
 
-        list.column("count", minwidth=0, width=50, stretch=tk.NO)
-        list.column("exist", minwidth=0, width=100, stretch=tk.NO)
+        table.column("count", minwidth=0, width=50, stretch=tk.NO)
+        table.column("exist", minwidth=0, width=100, stretch=tk.NO)
 
-        self.vsb = tk.Scrollbar(win, orient=tk.VERTICAL, command=list.yview)
-        list.configure(yscrollcommand=self.vsb.set)
+        self.vsb = tk.Scrollbar(win, orient=tk.VERTICAL, command=table.yview)
+        table.configure(yscrollcommand=self.vsb.set)
         self.vsb.grid(row=0, column=1, sticky="NS")
-        list.bind("<Button-1>", self.__on_list_click)
-        self.__refresh_list()
+        table.bind("<Button-1>", self.__on_table_click)
+        self.__refresh_table()
 
-    def __clear_list_selection(self):
-        for item in self.list.selection():
-            self.list.selection_remove(item)
+    def __clear_table_selection(self):
+        for item in self.table.selection():
+            self.table.selection_remove(item)
 
     def __character_limit(self, entry_text, length):
         self.params["change"].set(True)
@@ -80,7 +80,7 @@ class UserAdminFrame(object):
             entry_text.set(entry_text.get()[:length])
 
     def __on_change_form_data(self, flag):
-        self.__clear_list_selection()
+        self.__clear_table_selection()
         if (
             flag.get()
             and len(self.params["login"].get()) >= LOGIN_LENGTH_MIN
@@ -188,7 +188,7 @@ class UserAdminFrame(object):
         self.widgets["btn-delitem"].config(state=tk.DISABLED)
         self.widgets["btn-saveform"].config(state=tk.DISABLED, text="Создать нового пользователя")
 
-        self.__clear_list_selection()
+        self.__clear_table_selection()
 
         self.params["change"].set(False)
 
@@ -296,7 +296,7 @@ class UserAdminFrame(object):
         widgets["availableaccess"] = ttk.Combobox(
             form,
             values=self.__get_available_access(),
-            state=tk.READABLE,
+            state="readonly",
             textvariable=params["availableaccess"],
         )
 
@@ -399,7 +399,7 @@ class UserAdminFrame(object):
                 == "yes"
             ):
                 if self.db.delete_user(self.current_login):
-                    self.__refresh_list()
+                    self.__refresh_table()
                     self.__clear_data_in_form()
                 else:
                     showerror("Ошибка удаления", "Удаление прошло не удачно")
@@ -425,7 +425,7 @@ class UserAdminFrame(object):
             self.db.new_user(userdata)
         else:
             self.db.update_user(userdata)
-        self.__refresh_list()
+        self.__refresh_table()
         self.__clear_data_in_form()
 
 
@@ -435,7 +435,7 @@ class UserAdminFrame(object):
 
     def run(self):
         self.__clear_browser()
-        self.__refresh_list()
+        self.__refresh_table()
         self.__clear_data_in_form()
 
         self.window.grid(sticky="WENS")

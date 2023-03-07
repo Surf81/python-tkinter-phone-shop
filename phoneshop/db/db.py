@@ -286,27 +286,72 @@ class DB:
         )
         return {key: item for key, item in cur.fetchall()}
 
-    def load_content(self):
+    def load_content(self, filter=None):
         content = dict()
-
         cur = self.connect.cursor()
-        cur.execute(
-            """SELECT phone_id, nomination, price, c1.characteristic, c1.descr, c2.value
-            FROM phone
-            JOIN phone_component USING(phone_id)
-            JOIN component c2 USING(component_id)
-            JOIN characteristic c1 ON c1.characteristic=c2.characteristic
-            ORDER BY nomination, price;
-        """
-        )
-        records = cur.fetchall()
 
-        for phone_id, nomination, price, characteristic, descr, value in records:
+        if filter:
+            filtered_components = list()
+            for key, values in filter.items():
+                for value in values:
+                    filtered_components.append((key, value))
+
+            cur.execute("CREATE TEMPORARY TABLE IF NOT EXISTS tbl3(characteristic, value);")
+            cur.executemany(
+                """INSERT INTO tbl3(characteristic, value)        
+                SELECT val.column1 as characteristic, val.column2 as value
+                FROM
+                    (
+                        VALUES               
+                        (?, ?)
+                    ) val;
+                """,
+                tuple(filtered_components),
+            )
+            cur.execute(
+                """SELECT phone_id, model_id, model, price, c1.characteristic, c1.descr, c2.value
+                FROM phone
+                JOIN model USING(model_id)
+                JOIN phone_component USING(phone_id)
+                JOIN component c2 USING(component_id)
+                JOIN characteristic c1 ON c1.characteristic=c2.characteristic
+                WHERE phone_id IN (
+                        SELECT ph1.phone_id
+                        FROM phone_component ph1
+                             JOIN component USING(component_id)
+                             JOIN tbl3 USING(characteristic, value)
+                        GROUP BY phone_id
+                        HAVING COUNT(component_id) = (SELECT COUNT(*)
+                                                    FROM phone_component ph2
+                                                    WHERE ph2.phone_id = ph1.phone_id)
+                      )
+                ORDER BY model, price, c1.characteristic;
+            """
+            )
+            records = cur.fetchall()
+            cur.execute("DROP TABLE tbl3;")
+        else:
+            cur.execute(
+                """SELECT phone_id, model_id, model, price, c1.characteristic, c1.descr, c2.value
+                FROM phone
+                JOIN model USING(model_id)
+                JOIN phone_component USING(phone_id)
+                JOIN component c2 USING(component_id)
+                JOIN characteristic c1 ON c1.characteristic=c2.characteristic
+                ORDER BY model, price, c1.characteristic;
+            """
+            )
+            records = cur.fetchall()
+
+        for phone_id, model_id, model, price, characteristic, descr, value in records:
             phone = content.setdefault(phone_id, dict())
-            phone["nomination"] = nomination
+            phone["modelid"] = model_id
+            phone["modelname"] = model
             phone["price"] = price
             components = phone.setdefault("components", dict())
-            components[characteristic] = (descr, value)
+            components[characteristic] = dict()
+            components[characteristic]["description"] = descr
+            components[characteristic]["value"] = value
 
         return content
 
@@ -331,14 +376,86 @@ class DB:
         )
         self.connect.commit()
 
-    def add_phone(self, content: dict) -> int:
+    def get_characteristics(self):
+        cur = self.connect.cursor()
+        cur.execute(
+            """SELECT characteristic, descr
+            FROM characteristic;    
+            """
+        )
+        return {charact: descr for charact, descr in cur.fetchall()}
+
+    def get_component_values(self, characteristic) -> list:
+        cur = self.connect.cursor()
+        cur.execute(
+            """SELECT characteristic, value
+            FROM component
+            WHERE characteristic=?;    
+            """, (characteristic,)
+        )
+        return [value for _, value in cur.fetchall()]
+        
+
+    def get_components(self):
+        cur = self.connect.cursor()
+        components = dict()
+        cur.execute(
+            """SELECT characteristic, descr, value
+            FROM component
+                 JOIN characteristic USING(characteristic);    
+            """,
+        )
+        for characteristic, descr, value in cur.fetchall():
+            component = components.setdefault(characteristic, dict())
+            component["description"] = descr
+            values = component.setdefault("values", list())
+            values.append(value)
+        return components
+
+
+
+    def get_phone_models(self):
+        cur = self.connect.cursor()
+        cur.execute("""SELECT model_id, model
+            FROM model;
+        """
+        )
+        return {key: item for key, item in cur.fetchall()}
+
+
+    def new_model(self, modelname):
+        cur = self.connect.cursor()
+        cur.execute("""INSERT INTO model(model)
+            SELECT val.column1 as model
+            FROM 
+                (
+                    VALUES (?)
+                ) val
+                LEFT JOIN model ON val.column1 = model
+            WHERE model_id IS NULL
+        RETURNING *;
+        """, (modelname,)
+        )
+
+        fetch = cur.fetchone()
+        self.connect.commit()
+        return fetch or -1
+
+
+    def add_or_update_phone(self, content: dict) -> int:
         """
         Inners:
                  content: dict
                     need contains:
-                    "nomination": str - name of phone
-                    "price": int | float - price of phone
-                    "components": dict - parametrs of phone
+                    "phone_id": int - Не обязательный. Если указан, будет проведено обновление записи
+                    "model_id": str - Номер модели телефона. Если не указано, то будет поиск по названию модели
+                    "modelname": str - Название модели телефона
+                    "price": int | float - Цена телефона
+                    "components": dict - Параметры телефона:
+                        ключ: str - Характеристика
+                        значение: dict:
+                            "description": str - Описание
+                            "value": str - Значение
         Returns: int
                  value of phone_id in database table "phone"
                  or -1 if dublicate
@@ -347,7 +464,7 @@ class DB:
 
         # Добавить отсутствующие конпоненты характеристик телефонов
         components = tuple(
-            (characteristic.strip().lower(), value.strip())
+            (characteristic.strip().lower(), value["value"].strip())
             for characteristic, value in content["components"].items()
         )
         cur.executemany(
@@ -365,40 +482,130 @@ class DB:
                                 AND LOWER(c1.value)=LOWER(c2.value)
             WHERE c2.component_id IS NULL;
             """,
-            components,
+            components
         )
         self.connect.commit()
+
+        if not content.get("model_id"):
+            # Добавить отсутствующие модели телефонов если не указан ключ model_id
+            model = content["modelname"]
+            cur.execute(
+                """INSERT INTO model(model) 
+                SELECT val.column1 as model
+                FROM
+                (
+                    VALUES (?)
+                ) val
+                LEFT JOIN
+                    model ON val.column1 = model
+                WHERE model IS NULL;
+                """,
+                (model,)
+            )
+            self.connect.commit()
 
         # Старт транзакции
         cur.execute("""BEGIN;""")
 
-        # Добавить новую запись телефона
-        cur.execute(
-            """INSERT INTO phone(nomination, price)
-            VALUES (?, ?)
-            RETURNING phone_id;
-            """,
-            (content["nomination"], content["price"]),
-        )
-        phone_id = cur.fetchone()[0]
+        if content.get("phone_id"):
+            phone_id = content.get("phone_id")
+            # Обновить запись телефона
+            if content.get("model_id"):
+                cur.execute("""UPDATE phone
+                    SET model_id = val.column1,
+                        price = val.column2
+                    FROM
+                        (
+                            VALUES (?, ?)
+                        ) val
+                    WHERE phone.phone_id=?;
+                    """,
+                    (content["model_id"], content["price"], phone_id),
+                )
+            else:
+                cur.execute(
+                    """UPDATE phone
+                    SET phone.model_id = model.model_id,
+                        phone.price = val.column2;
+                    FROM
+                        (
+                            VALUES (?, ?)
+                        ) val
+                        JOIN model ON val.column1 = model
+                    WHERE phone.phone_id=?;
+                    """,
+                    (content["modelname"], content["price"], phone_id),
+                )
+        else:
+            # Добавить новую запись телефона
+            cur.execute(
+                """INSERT INTO phone(model_id, price)
+                SELECT model_id, val.column2 as price
+                FROM
+                (
+                    VALUES (?, ?)
+                ) val
+                JOIN model ON val.column1 = model
+                RETURNING phone_id;
+                """,
+                (content["modelname"], content["price"]),
+            )
+            phone_id = cur.fetchone()[0]
+
 
         # Настройка компонентов телефона
         phone_components = tuple(
             (phone_id, characteristic, value) for characteristic, value in components
         )
+        # Удалить компоненты, которых больше нет
+        if content.get("phone_id"):
+            cur.execute("CREATE TEMPORARY TABLE IF NOT EXISTS tbl2(phone_id, component_id);")
+            cur.executemany(
+                """INSERT INTO tbl2(phone_id, component_id)        
+                SELECT val.column1 as phone_id, component_id
+                FROM
+                    (
+                        VALUES               
+                        (?, ?, ?)
+                    ) val
+                    JOIN component ON val.column2=characteristic AND val.column3=value; 
+                """,
+                phone_components,
+            )
+
+            cur.execute(
+                """DELETE
+                FROM phone_component
+                WHERE (phone_id, component_id) IN
+                    (SELECT phone_id, component_id
+                    FROM phone_component
+                    LEFT JOIN tbl2 USING(phone_id, component_id)
+                    WHERE phone_id=?
+                    GROUP BY phone_id, component_id
+                    HAVING COUNT(tbl2.phone_id)=0
+                    );
+            """,
+                (phone_id,),
+            )
+            cur.execute("DROP TABLE tbl2;")
+
+        # Добавить новые компоненты, если еще отсутствуют конпоненты с аналогичными характеристиками
         cur.executemany(
             """INSERT INTO phone_component(phone_id, component_id, characteristic) 
-            SELECT DISTINCT c1.phone_id, component_id, c2.characteristic
+            SELECT DISTINCT c1.phone_id, c2.component_id, c2.characteristic
             FROM
                 (SELECT val.column1 as phone_id, characteristic, val.column3 as value
-                FROM 
-                (
-                    VALUES (?, ?, ?)
-                ) val
-                JOIN characteristic ON characteristic=val.column2) c1
-            JOIN
-                component c2 ON c1.characteristic = c2.characteristic
-                                AND LOWER(c1.value)=LOWER(c2.value);
+                    FROM 
+                    (
+                        VALUES (?, ?, ?)
+                    ) val
+                    JOIN characteristic ON characteristic=val.column2
+                ) c1
+                JOIN
+                    component c2 ON c1.characteristic = c2.characteristic
+                                    AND LOWER(c1.value)=LOWER(c2.value)
+                LEFT JOIN phone_component pc ON pc.phone_id=c1.phone_id AND pc.characteristic = c2.characteristic
+            WHERE pc.characteristic IS NULL;
             """,
             phone_components,
         )
@@ -407,7 +614,7 @@ class DB:
         cur.execute(
             """WITH cte AS
             (
-                SELECT nomination, price, component_id
+                SELECT model_id, price, component_id
                 FROM phone
                 JOIN phone_component USING(phone_id)
                 WHERE phone_id = ?
@@ -416,7 +623,7 @@ class DB:
             FROM phone
             JOIN phone_component USING(phone_id)
             WHERE phone_id != ?
-                  AND (nomination, price, component_id) IN (SELECT * FROM cte)
+                  AND (model_id, price, component_id) IN (SELECT * FROM cte)
             GROUP BY phone_id
             HAVING COUNT(*) = (SELECT COUNT(*) FROM cte);
         """,
@@ -436,6 +643,53 @@ class DB:
             return -1
 
         return phone_id
+
+    def delete_phone(self, phone_id):
+        cur = self.connect.cursor()
+        cur.execute("BEGIN;")
+        cur.execute(
+            """DELETE
+            FROM phone_component
+            WHERE phone_id=?;
+            """, (phone_id,)
+        )
+        cur.execute(
+            """DELETE
+            FROM phone
+            WHERE phone_id=?;
+            """, (phone_id,)
+        )
+        cur.execute("COMMIT;")
+        self.connect.commit()
+
+
+    def delete_phones_by_model(self, model_id):
+        cur = self.connect.cursor()
+        cur.execute("BEGIN;")
+        cur.execute(
+            """DELETE
+            FROM phone_component
+            WHERE phone_id IN (
+                SELECT phone_id
+                FROM phone
+                WHERE model_id=?);
+            """, (model_id,)
+        )
+        cur.execute(
+            """DELETE
+            FROM phone
+            WHERE model_id=?;
+            """, (model_id,)
+        )
+        cur.execute(
+            """DELETE
+            FROM model
+            WHERE model_id=?;
+            """, (model_id,)
+        )
+        cur.execute("COMMIT;")
+        self.connect.commit()
+
 
     def check_or_create_auth_tables(self):
         cur = self.connect.cursor()
@@ -607,18 +861,26 @@ class DB:
         )
         self.connect.commit()
 
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS model(
+            model_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            model CHAR(24) NOT NULL UNIQUE);
+            """
+        )
+
         # Если таблица телефонов отсутствует, то она будет создана
         cur.execute(
             """CREATE TABLE IF NOT EXISTS phone(
             phone_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-            nomination CHAR(24) NOT NULL,
+            model_id INTEGER,
             price NUMERIC(10.2) NOT NULL,
+            FOREIGN KEY (model_id) REFERENCES model(model_id),
             CHECK (price > 0));
             """
         )
         self.connect.commit()
 
-        # Если таблица телефонов отсутствует, то она будет создана
+        # Если таблица отсутствует, то она будет создана
         cur.execute(
             """CREATE TABLE IF NOT EXISTS phone_component(
             phone_component_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,

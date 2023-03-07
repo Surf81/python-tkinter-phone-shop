@@ -66,10 +66,10 @@ class Browser(object):
         if not self.router:
             self.router = Router()
             self.router.register_rout("refresh", self.refresh)
-            self.router.register_rout("shop", self.pages["shop"].run, history=True)
-            self.router.register_rout("admin", self.pages["admin"].run, history=True)
-            self.router.register_rout("logon", self.pages["logon"].run)
-            self.router.register_rout("changeuser", self.pages["logon"].run)
+            self.router.register_rout("shop", self.pages["shop"].launch("run"), history=True)
+            self.router.register_rout("admin", self.pages["admin"].launch("run"), history=True)
+            self.router.register_rout("logon", self.pages["logon"].launch("run"))
+            self.router.register_rout("changeuser", self.pages["logon"].launch("run"))
             self.router.register_rout("quit", self.browser.destroy)
 
     def __create_menu(self):

@@ -39,12 +39,13 @@ class PageRunner(object):
     def __init__(self):
         self.page = None
 
-
     def set_page(self, page):
         self.page = page
 
-
-    def run(self):
-        if self.page:
-            self.page.run()
+    def launch(self, command):
+        def launcher(*args, **kwargs):
+            if self.page:
+                func = getattr(self.page, command)
+                return func(*args, **kwargs)
+        return launcher
 

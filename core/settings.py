@@ -11,6 +11,7 @@ DATABASE = {
     'JSON': BASE_DIR / 'phone_base.json',
 }
 
+STATIC_ROOT = BASE_DIR / "assets"
 
 PASSWORD_LENGTH_MIN = 3
 LOGIN_LENGTH_MIN = 3

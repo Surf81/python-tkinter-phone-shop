@@ -23,7 +23,7 @@ def load_phone_base():
             for key, content in item.items():
                 if isinstance(content, dict):
                     if key.strip().lower() == "phone":
-                        phone_shop_base.add_phone(content)
+                        phone_shop_base.add_or_update_phone(content)
                     elif key.strip().lower() == "characteristic":
                         phone_shop_base.add_characteristic(content)
     

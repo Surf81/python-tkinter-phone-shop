@@ -13,13 +13,10 @@ if __name__ == "__main__":
     user = User(database)
     access = Access(user)
 
-    # user.set_role({
-    #     "login": "unknown admin",
-    #     "role": "admin",
-    #     "description": "Хитрый админ",
-    # })
-
-    # Первичное наполнение базы данных
-    # # load_phone_base()
+    user.set_role({
+        "login": "unknown admin",
+        "role": "admin",
+        "description": "Хитрый админ",
+    })
 
     browser = Browser(database, user, access)
