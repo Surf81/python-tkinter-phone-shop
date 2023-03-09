@@ -128,7 +128,7 @@ class SideBarFrame(tk.Frame):
         ttk.Separator(borderframe, orient=tk.VERTICAL).grid(
             row=0, column=1, sticky="NS", padx=[10, 0]
         )
-        ttk.Label(menuframe, text="Меню администратора", font="Arial 12 bold").grid(
+        ttk.Label(menuframe, text="Панель администратора", font="Arial 12 bold").grid(
             row=0, column=0, padx=5, pady=[5, 30]
         )
         ttk.Label(menuframe, text="Пользователи", font="Arial 12 bold").grid(

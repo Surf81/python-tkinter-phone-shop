@@ -540,7 +540,7 @@ class PhoneAdminPage(object):
         width = 400
         height = 150
 
-        win.wm_title("Выбрать компонент")
+        win.wm_title("Добавить модель")
         win.resizable(False, False)
         # auth.overrideredirect(True) # Режим работы без отдельного окна
         win.tkraise(self.master)

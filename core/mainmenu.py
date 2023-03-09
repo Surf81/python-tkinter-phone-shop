@@ -21,7 +21,7 @@ class MainMenu(object):
 
         if self.access.is_allow("adminmenu"):
             self.mainmenu.add_command(
-                label="Меню администратора", command=self.router("main-admin")
+                label="Панель администратора", command=self.router("main-admin")
             )
 
         authoriazation = tk.Menu(self.mainmenu, tearoff=0)
