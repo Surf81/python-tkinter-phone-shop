@@ -25,11 +25,13 @@ class AuthForm:
         }
 
     @staticmethod
-    def __character_limit(entry_text, length):
+    def __character_limit(entry_text, length) -> None:
+        """Трассировка длины строки"""
         if len(entry_text.get()) > 0:
             entry_text.set(entry_text.get()[:length])
 
-    def __validate_login(self, newval):
+    def __validate_login(self, newval) -> bool:
+        """Валидация введенного логина"""
         valid_chars = string.ascii_letters + string.digits + "_"
         for char in newval:
             if char not in valid_chars:
@@ -40,7 +42,8 @@ class AuthForm:
         self.params["error"].set("")
         return True
 
-    def __validate_password(self, newval):
+    def __validate_password(self, newval) -> bool:
+        """Валидация введенного пароля"""
         valid_chars = string.ascii_letters + string.digits + "_!#$%^{}[]():|"
         for char in newval:
             if char not in valid_chars:
@@ -51,7 +54,8 @@ class AuthForm:
         self.params["error"].set("")
         return True
 
-    def run(self):
+    def run(self) -> None:
+        """Запуск диалогового окна авторизации"""
         self.dialog_window = tk.Toplevel(self.master)
         win = self.dialog_window
 
@@ -103,7 +107,8 @@ class AuthForm:
 
         self.__logon_dialog()
 
-    def __set_window_size(self, width, height):
+    def __set_window_size(self, width, height) -> None:
+        """Изменение размера окна авторизации"""
         self.__destroy_widgets()
 
         trans_x = (self.master.winfo_screenwidth() - width) // 2
@@ -112,16 +117,19 @@ class AuthForm:
             "{}x{}+{}+{}".format(width, height, trans_x, trans_y)
         )
 
-    def __destroy_widgets(self):
+    def __destroy_widgets(self) -> None:
+        """Очистка окна"""
         for widget in self.widgets.values():
             widget["widget"].destroy()
         self.widgets = dict()
 
-    def __show_widgets(self):
+    def __show_widgets(self) -> None:
+        """Отображение зарегистрированных виджетов"""
         for widget in self.widgets.values():
             widget["widget"].grid(**widget["grid"])
 
-    def __add_login_password(self):
+    def __add_login_password(self) -> None:
+        """Добавление виджетов ввода логина и пароля"""
         win = self.dialog_window
         bold_font = font.Font(weight="bold")
 
@@ -168,7 +176,8 @@ class AuthForm:
         self.widgets["login"]["widget"].focus_set()
         self.params["error"].set(error)
 
-    def __logon_dialog(self):
+    def __logon_dialog(self) -> None:
+        """Отображение диалогового окна авторизации"""
         win = self.dialog_window
         self.__set_window_size(self.WIDTH, self.HEIGHT)
         self.__add_login_password()
@@ -181,7 +190,8 @@ class AuthForm:
 
         self.__show_widgets()
 
-    def __logon_with_role_dialog(self):
+    def __logon_with_role_dialog(self) -> None:
+        """Отображение диалогового окна выбора уровня доступа"""
         win = self.dialog_window
         self.__set_window_size(self.WIDTH, self.HEIGHT)
 
@@ -232,7 +242,8 @@ class AuthForm:
 
         self.__show_widgets()
 
-    def __logon_or_register_dialog(self):
+    def __logon_or_register_dialog(self) -> None:
+        """Диалоговое окно создания нового пользователя"""
         win = self.dialog_window
 
         self.params["error"].set("комбинация логин/пароль не обнаружена")
@@ -283,7 +294,8 @@ class AuthForm:
 
         self.__show_widgets()
 
-    def __logon(self):
+    def __logon(self) -> None:
+        """Обработка попытки логона"""
         win = self.dialog_window
         login = self.params["login"].get()
         password = self.params["password"].get()
@@ -304,17 +316,21 @@ class AuthForm:
                 self.__logon_with_role_dialog()
         else:
             if not self.user.is_free_login(login):
-                self.params["error"].set("пароль не верный или пользователь заблокирован")
+                self.params["error"].set(
+                    "пароль не верный или пользователь заблокирован"
+                )
                 self.__logon_dialog()
             else:
                 self.__logon_or_register_dialog()
 
-    def __logon_with_role(self, role):
+    def __logon_with_role(self, role) -> None:
+        """Обработка выбора роли"""
         self.user.set_role(role)
         self.master.event_generate("<<UserChange>>")
         self.dialog_window.destroy()
 
-    def __create_user(self):
+    def __create_user(self) -> None:
+        """Обработка создания нового пользователя"""
         login = self.params["login"].get().strip()
         password = self.params["password"].get().strip()
 

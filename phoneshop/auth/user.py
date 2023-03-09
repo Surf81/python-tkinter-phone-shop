@@ -1,6 +1,6 @@
-import tkinter as tk
-
 class User(object):
+    """Учетная запись пользователя"""
+
     default_user = {
         "login": None,
         "firsname": "unknown",
@@ -15,6 +15,7 @@ class User(object):
         self.db_manager = db_manager
 
     def logon(self, login, password):
+        """Получение информации о авторизации в менеджере"""
         roles = self.db_manager.check_user(login, password)
         if not roles:
             self.user = dict(self.default_user)
@@ -22,6 +23,7 @@ class User(object):
         return roles
 
     def new_user(self, userdata):
+        """Получение информации о создании пользователя в менеджере"""
         roles = self.db_manager.new_user(userdata)
         if not roles:
             self.user = dict(self.default_user)
@@ -29,9 +31,11 @@ class User(object):
         return roles
 
     def is_free_login(self, login):
+        """Проверка логина"""
         return self.db_manager.is_free_login(login)
 
     def set_role(self, role=None):
+        """Получение уровня доступа для учетной записи"""
         if role:
             self.user = {
                 "login": role["login"],

@@ -5,6 +5,8 @@ from core.router import PageRunner
 
 
 class ShopForm(object):
+    """Панель магазина"""
+
     def __init__(self, master_window, browser):
         self.master = master_window
         self.browser = browser
@@ -16,27 +18,32 @@ class ShopForm(object):
         self.pages = dict()
         self.__init()
 
-    def __init(self):
+    def __init(self) -> None:
+        """Инициализация приложения"""
         self.__init_pages()
         self.__create_router()
         self.__create_form()
         self.__create_pages()
 
-    def __init_pages(self):
+    def __init_pages(self) -> None:
+        """Создание стартеров будущих прилождений"""
         for page in ("shop-app",):
             self.pages[page] = PageRunner()
 
-    def __create_router(self):
+    def __create_router(self) -> None:
+        """Регистрация команд запуска приложений"""
         self.router.register_rout("shop-app", self.pages["shop-app"].launch("run"))
         self.router.register_rout(
             "shop-app-filter", self.pages["shop-app"].launch("setfilter")
         )
 
-    def __create_pages(self):
+    def __create_pages(self) -> None:
+        """Указание в стартере приложений"""
         win = self.frames["mainframe"]
         self.pages["shop-app"].set_page(ShopPageContent(win, self.browser))
 
-    def __create_form(self):
+    def __create_form(self) -> None:
+        """Формирование окна магазина"""
         win = self.window
         tk.Grid.columnconfigure(win, 0, weight=1, minsize=200)
         tk.Grid.columnconfigure(win, 1, weight=15)
@@ -49,11 +56,13 @@ class ShopForm(object):
         self.frames["mainframe"] = MainFrame(win, self.browser)
         self.frames["mainframe"].grid(row=1, column=1, sticky="WENS")
 
-    def __clear_browser(self):
+    def __clear_browser(self) -> None:
+        """Очистка окна-родителя"""
         for item in self.master.grid_slaves():
             item.grid_forget()
 
-    def run(self):
+    def run(self) -> None:
+        """Запуск приложения"""
         self.__clear_browser()
         self.frames["topbar"].refresh()
         self.frames["sidebar"].refresh()
@@ -93,6 +102,8 @@ class TopBarFrame(tk.Frame):
 
 
 class SideBarFrame(tk.Frame):
+    """Боковая панель с фильтрами"""
+
     def __init__(self, master_window, browser, *args, **kwargs):
         super().__init__(master_window, *args, **kwargs)
         self.master = master_window
@@ -102,7 +113,8 @@ class SideBarFrame(tk.Frame):
         self.filteractive = None
         self.__create_form()
 
-    def __make_filter(self):
+    def __make_filter(self) -> dict:
+        """Создание информационного объекта фильтра"""
         shop_db_manager = self.browser.db_managers["shop"]
         components = dict()
         iid = 0
@@ -122,7 +134,8 @@ class SideBarFrame(tk.Frame):
                 value["checked"] = True
         return components
 
-    def __create_form(self):
+    def __create_form(self) -> None:
+        """Создание формы фильтра"""
         tk.Grid.columnconfigure(self, 0, weight=1)
         tk.Grid.rowconfigure(self, 0, weight=1)
 
@@ -164,7 +177,8 @@ class SideBarFrame(tk.Frame):
             row=1, column=1, sticky="NS", padx=0
         )
 
-    def __set_filter(self):
+    def __set_filter(self) -> None:
+        """Применение фильтра"""
         if self.filteractive.get():
             components = dict()
             for _, item in self.tree.get_content().items():
@@ -177,7 +191,8 @@ class SideBarFrame(tk.Frame):
         else:
             self.router("shop-app-filter")(None)
 
-    def refresh(self):
+    def refresh(self) -> None:
+        """Обновление дерева фильтра"""
         self.tree.refresh(self.__make_filter())
 
 
@@ -209,7 +224,8 @@ class ShopPageContent(object):
         tk.Grid.rowconfigure(win, 0, weight=1)
         self.__create_table()
 
-    def __refresh_table(self):
+    def __refresh_table(self) -> None:
+        """Обновление табличной части из базы данных"""
         shop_db_manager = self.browser.db_managers["shop"]
         table = self.table
         for item in table.get_children():
@@ -237,7 +253,8 @@ class ShopPageContent(object):
                 )
                 table.insert("", tk.END, values=item, text=str(phone_id))
 
-    def __create_table(self):
+    def __create_table(self) -> None:
+        """Создание табличной части"""
         win = self.window
         columns = ("count", "model", "charact", "value")
         self.table = ttk.Treeview(
@@ -265,15 +282,18 @@ class ShopPageContent(object):
         vsb.grid(row=0, column=1, sticky="NS")
         self.__refresh_table()
 
-    def __clear_browser(self):
+    def __clear_browser(self) -> None:
+        """Очистка окна-родителя"""
         for item in self.master.grid_slaves():
             item.grid_forget()
 
-    def setfilter(self, filter):
-        self.filter = filter
+    def setfilter(self, filt: dict) -> None:
+        """Открытие окна с фильтром"""
+        self.filter = filt
         self.run()
 
-    def run(self):
+    def run(self) -> None:
+        """Открытие окна без фильтра"""
         self.__clear_browser()
         self.__refresh_table()
 

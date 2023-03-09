@@ -3,14 +3,19 @@ from tkinter import ttk
 
 
 class MainMenu(object):
+    """Главное меню программы
+    """
     def __init__(self, master_window, browser):
+        self.browser = browser
         self.master = master_window
         self.router = browser.router
         self.access = browser.access
         self.mainmenu = tk.Menu(master_window)
         self.create_menu()
 
-    def create_menu(self):
+    def create_menu(self) -> None:
+        """Заполнение меню командами
+        """
         self.mainmenu.delete(0, tk.END)
         self.mainmenu.add_command(label="Магазин", command=self.router("main-shop"))
 

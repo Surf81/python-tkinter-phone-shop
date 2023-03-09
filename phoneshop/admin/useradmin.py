@@ -7,6 +7,8 @@ from core.settings import *
 
 
 class UserAdminPage(object):
+    """Страница административной панели для пользователей"""
+
     def __init__(self, master_window, browser):
         self.browser = browser
         self.master = master_window
@@ -19,7 +21,8 @@ class UserAdminPage(object):
         self.current_login = ""
         self.__create_form()
 
-    def __create_form(self):
+    def __create_form(self) -> None:
+        """Создание окна в котором отображается панель"""
         win = self.window
         tk.Grid.columnconfigure(win, 0, weight=1)
         tk.Grid.rowconfigure(win, 0, weight=1)
@@ -28,13 +31,15 @@ class UserAdminPage(object):
         self.__create_table()
         self.__create_bottom_form()
 
-    def __on_table_click(self, event):
+    def __on_table_click(self, event) -> None:
+        """Обработчик события клика в табличной части"""
         item = self.table.identify("item", event.x, event.y)
         login = self.table.item(item, "text")
         if login:
             self.__load_data_in_form(login)
 
-    def __refresh_table(self):
+    def __refresh_table(self) -> None:
+        """Обновление данных с табличной части из базы данных"""
         auth_db_manager = self.browser.db_managers["auth"]
         table = self.table
         for item in table.get_children():
@@ -50,10 +55,13 @@ class UserAdminPage(object):
             )
             table.insert("", tk.END, values=item, text=user["login"])
 
-    def __create_table(self):
+    def __create_table(self) -> None:
+        """Формирование структуры табличной части"""
         win = self.window
         columns = ("count", "login", "roles", "exist")
-        self.table = ttk.Treeview(win, columns=columns, show="headings", selectmode="browse")
+        self.table = ttk.Treeview(
+            win, columns=columns, show="headings", selectmode="browse"
+        )
         self.table.grid(row=0, column=0, sticky="nsew")
 
         table = self.table
@@ -71,16 +79,19 @@ class UserAdminPage(object):
         table.bind("<Button-1>", self.__on_table_click)
         self.__refresh_table()
 
-    def __clear_table_selection(self):
+    def __clear_table_selection(self) -> None:
+        """Отмена выделения в табличной части"""
         for item in self.table.selection():
             self.table.selection_remove(item)
 
-    def __character_limit(self, entry_text, length):
+    def __character_limit(self, entry_text, length) -> None:
+        """Ограничение длины строки при трассировке"""
         self.params["change"].set(True)
         if len(entry_text.get()) > 0:
             entry_text.set(entry_text.get()[:length])
 
-    def __on_change_form_data(self, flag):
+    def __on_change_form_data(self, flag: bool) -> None:
+        """Обработчик трассировка self.params["change"] Видимость кнопок при изменении в форме"""
         self.__clear_table_selection()
         if (
             flag.get()
@@ -101,10 +112,12 @@ class UserAdminPage(object):
         else:
             self.widgets["btn-delitem"].config(state=tk.NORMAL)
 
-    def __on_change_checkbox(self, flag):
+    def __on_change_checkbox(self, flag) -> None:
+        """Обработчик изменения Checkbox"""
         self.params["change"].set(True)
 
-    def __validate_login(self, newval):
+    def __validate_login(self, newval) -> bool:
+        """Валидация введенного значения логина"""
         valid_chars = string.ascii_letters + string.digits + "_"
         for char in newval:
             if char not in valid_chars:
@@ -115,7 +128,8 @@ class UserAdminPage(object):
         self.params["error"].set("")
         return True
 
-    def __validate_password(self, newval):
+    def __validate_password(self, newval) -> bool:
+        """Валидация введенного значения пароля"""
         valid_chars = string.ascii_letters + string.digits + "_!#$%^{}[]():|"
         for char in newval:
             if char not in valid_chars:
@@ -126,7 +140,8 @@ class UserAdminPage(object):
         self.params["error"].set("")
         return True
 
-    def __get_available_access(self):
+    def __get_available_access(self) -> list:
+        """Список доступных прав доступа для добавления"""
         auth_db_manager = self.browser.db_managers["auth"]
         access = [
             item
@@ -139,7 +154,8 @@ class UserAdminPage(object):
             self.params["availableaccess"].set("")
         return access
 
-    def __load_data_in_form(self, login):
+    def __load_data_in_form(self, login: str) -> None:
+        """Загрузка данных о пользователе в форму"""
         auth_db_manager = self.browser.db_managers["auth"]
         login = login.strip()
         if not login:
@@ -169,7 +185,8 @@ class UserAdminPage(object):
 
             self.params["change"].set(False)
 
-    def __clear_data_in_form(self):
+    def __clear_data_in_form(self) -> None:
+        """Очистка полей формы"""
         self.current_login = ""
 
         for param in (
@@ -189,13 +206,16 @@ class UserAdminPage(object):
         self.widgets["availableaccess"].config(values=self.__get_available_access())
         self.widgets["btn-access-del"].config(state=tk.DISABLED)
         self.widgets["btn-delitem"].config(state=tk.DISABLED)
-        self.widgets["btn-saveform"].config(state=tk.DISABLED, text="Создать нового пользователя")
+        self.widgets["btn-saveform"].config(
+            state=tk.DISABLED, text="Создать нового пользователя"
+        )
 
         self.__clear_table_selection()
 
         self.params["change"].set(False)
 
-    def __create_bottom_form(self):
+    def __create_bottom_form(self) -> None:
+        """Создание формы пользовательского ввода"""
         tk.Grid.columnconfigure(self.form, 0, weight=1)
         tk.Grid.columnconfigure(self.form, 1, weight=1)
         tk.Grid.columnconfigure(self.form, 4, weight=1)
@@ -241,10 +261,16 @@ class UserAdminPage(object):
         params["access"] = dict()
 
         params["login"].trace(
-            "w", lambda *args: self.__character_limit(self.params["login"], LOGIN_LENGTH_MAX)
+            "w",
+            lambda *args: self.__character_limit(
+                self.params["login"], LOGIN_LENGTH_MAX
+            ),
         )
         params["password"].trace(
-            "w", lambda *args: self.__character_limit(self.params["password"], PASSWORD_LENGTH_MAX)
+            "w",
+            lambda *args: self.__character_limit(
+                self.params["password"], PASSWORD_LENGTH_MAX
+            ),
         )
         params["fname"].trace(
             "w", lambda *args: self.__character_limit(self.params["fname"], 50)
@@ -340,13 +366,15 @@ class UserAdminPage(object):
         self.widgets["access"].bind("<<ListboxSelect>>", self.__on_select_listbox)
         self.__clear_data_in_form()
 
-    def __on_select_listbox(self, event):
+    def __on_select_listbox(self, event) -> None:
+        """Обработчик события выбора строки в Listbox"""
         if event.widget.curselection() and len(self.params["access"]) > 1:
             self.widgets["btn-access-del"].config(state=tk.NORMAL)
         else:
             self.widgets["btn-access-del"].config(state=tk.DISABLED)
 
-    def __add_access(self):
+    def __add_access(self) -> None:
+        """Обработчик нажатия кнопки удаления уровня доступа"""
         auth_db_manager = self.browser.db_managers["auth"]
         if self.params["availableaccess"].get():
             self.widgets["access"].insert(tk.END, self.params["availableaccess"].get())
@@ -360,7 +388,8 @@ class UserAdminPage(object):
             self.widgets["availableaccess"].config(values=self.__get_available_access())
             self.params["change"].set(True)
 
-    def __del_access(self):
+    def __del_access(self) -> None:
+        """Обработчик нажания кнопки добавления уровня доступа"""
         if (cursel := self.widgets["access"].curselection()) and len(
             self.params["access"]
         ) > 1:
@@ -386,7 +415,8 @@ class UserAdminPage(object):
             self.widgets["btn-access-del"].config(state=tk.DISABLED)
             self.params["change"].set(True)
 
-    def __del_item_from_db(self):
+    def __del_item_from_db(self) -> None:
+        """Обработка нажатия кнопки удаления пользователя"""
         auth_db_manager = self.browser.db_managers["auth"]
         if self.current_login and self.current_login == self.params["login"].get():
             if self.current_login == self.user.user["login"]:
@@ -409,10 +439,11 @@ class UserAdminPage(object):
                 else:
                     showerror("Ошибка удаления", "Удаление прошло не удачно")
 
-    def __create_new_user_or_update(self):
+    def __create_new_user_or_update(self) -> None:
+        """Обработка нажатия кнопки сохранения или создания пользователя"""
         auth_db_manager = self.browser.db_managers["auth"]
         params = self.params
-        if not(params["login"].get() and params["password"].get()):
+        if not (params["login"].get() and params["password"].get()):
             return
         userdata = {
             "login": params["login"].get(),
@@ -423,7 +454,7 @@ class UserAdminPage(object):
             "exist": params["exist"].get(),
             "roles": list(),
         }
-        
+
         for role in params["access"].keys():
             userdata["roles"].append(role)
 
@@ -434,12 +465,13 @@ class UserAdminPage(object):
         self.__refresh_table()
         self.__clear_data_in_form()
 
-
-    def __clear_browser(self):
+    def __clear_browser(self) -> None:
+        """Очистка окна-родителя"""
         for item in self.master.grid_slaves():
             item.grid_forget()
 
-    def run(self):
+    def run(self) -> None:
+        """Запуск приложения"""
         self.__clear_browser()
         self.__refresh_table()
         self.__clear_data_in_form()

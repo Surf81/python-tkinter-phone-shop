@@ -1,6 +1,9 @@
-from typing import *
+from typing import Any
 
 class DotDict(dict):
+    """Расширение класса dict позволяет обращаться
+        к ключам через точку
+    """
     def __getattr__(self, name: str) -> Any:
         if (elem := self.get(name, None)):
             return elem

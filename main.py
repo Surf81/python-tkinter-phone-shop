@@ -1,4 +1,3 @@
-# Настройки проекта
 from core.browser import Browser
 from core.settings import DATABASE
 from core.db.database import SQLiteDatabase

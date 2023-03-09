@@ -8,6 +8,8 @@ from core.db.loadbase import load_phone_base
 
 
 class PhoneAdminPage(object):
+    """Страница административной панели для телефонов
+    """
     def __init__(self, master_window, browser):
         self.browser = browser
         self.master = master_window
@@ -20,19 +22,22 @@ class PhoneAdminPage(object):
         self.form = tk.Frame(self.window)
         self.__create_form()
 
-    def __refresh_content(self):
+    def __refresh_content(self) -> None:
+        """Обновление информации из базы данных"""
         shop_db_manager = self.browser.db_managers["shop"]
         self.params["allmodels"] = shop_db_manager.get_phone_models()
         self.params["allcharacteristics"] = shop_db_manager.get_characteristics()
         self.content = shop_db_manager.load_content()
 
-    def __on_table_click(self, event):
+    def __on_table_click(self, event) -> None:
+        """Обработчик события клика в табличной части"""
         item = self.table.identify("item", event.x, event.y)
         phone_id = self.table.item(item, "text")
         if phone_id:
             self.__load_data_in_form(phone_id)
 
-    def __refresh_table(self):
+    def __refresh_table(self) -> None:
+        """Перерисовка табличной части"""
         self.__refresh_content()
         table = self.table
         for item in table.get_children():
@@ -58,7 +63,8 @@ class PhoneAdminPage(object):
                 )
                 table.insert("", tk.END, values=item, text=str(phone_id))
 
-    def __create_table(self):
+    def __create_table(self) -> None:
+        """Создание структуры табличной части"""
         win = self.window
         columns = ("count", "login", "roles", "exist")
         self.table = ttk.Treeview(
@@ -83,7 +89,8 @@ class PhoneAdminPage(object):
         table.bind("<Button-1>", self.__on_table_click)
         self.__refresh_table()
 
-    def __create_form(self):
+    def __create_form(self) -> None:
+        """Создание окна для отображения"""
         win = self.window
         tk.Grid.columnconfigure(win, 0, weight=1)
         tk.Grid.rowconfigure(win, 0, weight=1)
@@ -92,7 +99,13 @@ class PhoneAdminPage(object):
         self.__create_table()
         self.__create_bottom_form()
 
-    def __validate_price(self, newval):
+    def __validate_price(self, newval: str) -> bool:
+        """Валидатор корректного ввода в поле Цена
+        Args:
+            newval (str): введенное значение
+        Returns:
+            bool: True при положительной проверке
+        """
         valid_chars = string.digits + "."
         self.params["formchange"].set(True)
 
@@ -111,7 +124,8 @@ class PhoneAdminPage(object):
         self.params["error"].set("")
         return True
 
-    def __clear_data_in_form(self):
+    def __clear_data_in_form(self) -> None:
+        """Очистка полей формы пользовательского ввода"""
         self.params["phone_id"].set(0)
         self.widgets["modelname"].config(
             values=(tuple(self.params["allmodels"].values()))
@@ -127,7 +141,12 @@ class PhoneAdminPage(object):
         self.widgets["btn-del-component"].config(state=tk.DISABLED)
         self.params["formchange"].set(False)
 
-    def __load_data_in_form(self, phone_id):
+    def __load_data_in_form(self, phone_id: int) -> None:
+        """Отображение в полях формы пользовательского ввода информации
+            о телефоне, загруженной из БЖ
+        Args:
+            phone_id (int): значение ключа записи телефона
+        """
         phone = self.content[int(phone_id)]
         self.params["phone_id"].set(int(phone_id))
         self.widgets["modelname"].config(
@@ -153,7 +172,8 @@ class PhoneAdminPage(object):
         self.widgets["btn-del-component"].config(state=tk.DISABLED)
         self.params["formchange"].set(False)
 
-    def __del_buttons_available(self, *args, **kwargs):
+    def __del_buttons_available(self, *args) -> None:
+        """Управление доступностью кнопок удаления"""
         if self.params["phone_id"].get():
             self.widgets["btn-del-phone"].config(state=tk.NORMAL)
             self.widgets["btn-del-model"].config(state=tk.NORMAL)
@@ -161,22 +181,31 @@ class PhoneAdminPage(object):
             self.widgets["btn-del-phone"].config(state=tk.DISABLED)
             self.widgets["btn-del-model"].config(state=tk.DISABLED)
 
-    def __on_form_change(self, flag):
+    def __on_form_change(self, flag: bool) -> None:
+        """Обработчик трассировки self.params["formchange"]
+        Args:
+            flag (bool): Если True, значит в форме были изменены данные
+        """
         if flag:
             if self.params["modelname"].get() and self.params["price"].get():
-                self.widgets["btn-update"].config(state=tk.NORMAL)
+                if self.params["phone_id"].get():
+                    self.widgets["btn-update"].config(state=tk.NORMAL)
+                else:
+                    self.widgets["btn-update"].config(state=tk.DISABLED)
                 self.widgets["btn-new_phone"].config(state=tk.NORMAL)
                 return
         self.widgets["btn-update"].config(state=tk.DISABLED)
         self.widgets["btn-new_phone"].config(state=tk.DISABLED)
 
-    def __on_component_click(self, event):
+    def __on_component_click(self, event) -> None:
+        """Обработчик события клика на Listbox с перечнем компонентов телефона"""
         item = self.widgets["components"].identify("item", event.x, event.y)
         characteristic = self.widgets["components"].item(item, "text")
         if characteristic:
             self.widgets["btn-del-component"].config(state=tk.NORMAL)
 
-    def __delete_component(self):
+    def __delete_component(self) -> None:
+        """Удаление выделенной строки из Listbox с перечнем компонентов телефона"""
         item = self.widgets["components"].focus()
         characteristic = self.widgets["components"].item(item, "text")
         if characteristic:
@@ -191,7 +220,8 @@ class PhoneAdminPage(object):
             self.widgets["components"].delete(selected_item)
             self.params["formchange"].set(True)
 
-    def __add_component(self, win, charact, value):
+    def __add_component(self, win, charact: str, value: str) -> None:
+        """Добавление строки в Listbox с перечнем компонентов телефона"""
         if value:
             all_charact = {
                 item: key for key, item in self.params["allcharacteristics"].items()
@@ -205,13 +235,17 @@ class PhoneAdminPage(object):
             self.params["formchange"].set(True)
             win.destroy()
 
-    def __fill_choice_widget(self, widget, charact):
+    def __fill_choice_widget(self, widget, charact) -> None:
+        """Обработчик Combobox в окне добавления компонента телефона
+        Заполнение Listbox значений компонентов
+        """
         shop_db_manager = self.browser.db_managers["shop"]
         widget.delete(0, tk.END)
         for value in shop_db_manager.get_component_values(charact):
             widget.insert(tk.END, value)
 
-    def __open__add_component_dialog(self):
+    def __open__add_component_dialog(self) -> None:
+        """Окно диалога выбора компонента"""
         dialog_window = tk.Toplevel(self.window)
         win = dialog_window
         width = 400
@@ -298,14 +332,16 @@ class PhoneAdminPage(object):
             ),
         ).grid(row=10, column=0, columnspan=2, sticky="we", padx=20, pady=20)
 
-    def __change_modelname(self, *args, **kwargs):
+    def __change_modelname(self, *args) -> None:
+        """Обработчик события трассировки модели телефона"""
         if self.params["modelname"].get():
             self.params["model_id"] = {
                 item: key for key, item in self.params["allmodels"].items()
             }[self.params["modelname"].get()]
         self.params["formchange"].set(True)
 
-    def __create_bottom_form(self):
+    def __create_bottom_form(self) -> None:
+        """Создание формы пользовательского ввода"""
         form = self.form
 
         self.widgets["btn-del-phone"] = tk.Button(
@@ -374,7 +410,7 @@ class PhoneAdminPage(object):
             form,
             fg="red",
             text="Добавить новую модель",
-            command=self.__new_model,
+            command=self.__new_model_dialog,
         )
         self.widgets["btn-new-model"].grid(row=2, column=4, sticky="WE")
 
@@ -436,7 +472,9 @@ class PhoneAdminPage(object):
             state=tk.NORMAL,
             command=self.__load_phone_base,
         )
-        self.widgets["btn-load-phones"].grid(row=10, column=0, columnspan=2, sticky="WE")
+        self.widgets["btn-load-phones"].grid(
+            row=10, column=0, columnspan=2, sticky="WE"
+        )
 
         self.params["formchange"].set(False)
         self.__refresh_content()
@@ -445,13 +483,15 @@ class PhoneAdminPage(object):
         )
         form.grid(row=1, column=0, sticky="WENS", pady=20, padx=20)
 
-    def __load_phone_base(self):
+    def __load_phone_base(self) -> None:
+        """Обработчик нажатия кнопки. Загрузка демонстрационных данных в базу данных"""
         shop_db_manager = self.browser.db_managers["shop"]
         load_phone_base(shop_db_manager)
         self.__refresh_table()
         self.__clear_data_in_form()
 
-    def __delete_phone(self):
+    def __delete_phone(self) -> None:
+        """Обработчик нажатия кнопки удаления телефона"""
         shop_db_manager = self.browser.db_managers["shop"]
         if (
             self.params["phone_id"].get()
@@ -467,7 +507,8 @@ class PhoneAdminPage(object):
             self.__refresh_table()
             self.__clear_data_in_form()
 
-    def __delete_model(self):
+    def __delete_model(self) -> None:
+        """Обработчик нажатия кнопки удаления модели"""
         shop_db_manager = self.browser.db_managers["shop"]
         if (
             self.params["model_id"]
@@ -483,7 +524,8 @@ class PhoneAdminPage(object):
             self.__refresh_table()
             self.__clear_data_in_form()
 
-    def __add_new_model(self, win, model):
+    def __add_new_model(self, win, model) -> None:
+        """Добавление новой модели в БД"""
         shop_db_manager = self.browser.db_managers["shop"]
         if model:
             if shop_db_manager.new_model(model) != -1:
@@ -491,7 +533,8 @@ class PhoneAdminPage(object):
                 self.__clear_data_in_form()
                 win.destroy()
 
-    def __new_model(self):
+    def __new_model_dialog(self) -> None:
+        """Открытие диалога добавления новой модели"""
         dialog_window = tk.Toplevel(self.window)
         win = dialog_window
         width = 400
@@ -523,7 +566,8 @@ class PhoneAdminPage(object):
             command=lambda: self.__add_new_model(win, model_text.get().strip()),
         ).grid(row=10, column=0, columnspan=2, sticky="we", padx=20, pady=20)
 
-    def __save_changes_or_create(self):
+    def __save_changes_or_create(self) -> None:
+        """Сохранение изменений или создание новой записи о телефоне"""
         shop_db_manager = self.browser.db_managers["shop"]
         phone = {
             "phone_id": self.params["phone_id"].get(),
@@ -536,11 +580,13 @@ class PhoneAdminPage(object):
         self.__refresh_table()
         self.__clear_data_in_form()
 
-    def __clear_browser(self):
+    def __clear_browser(self) -> None:
+        """Очистка окна-родителя"""
         for item in self.master.grid_slaves():
             item.grid_forget()
 
-    def run(self):
+    def run(self) -> None:
+        """Запуск приложения"""
         self.__clear_browser()
         self.__refresh_table()
 

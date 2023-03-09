@@ -1,17 +1,26 @@
+from typing import Any, Optional
 from core.settings import LOGIN_LENGTH_MAX, PASSWORD_LENGTH_MAX
 
 
 class DBManager(object):
+    """Менеджер запросов к базе данных
+    Args:
+        database (<class 'sqlite3.Connection'>): объект подключения к базе данных
+    """
+
     def __init__(self, database):
         self.db = database
         if self.db.db_empty:
             self.create()
 
-    def create(self):
+    def create(self) -> None:
+        """Создание таблиц в базе данных"""
         pass
 
 
 class AuthDBManager(DBManager):
+    """Менеджер запросов авторизации к базе данных"""
+
     def create(self):
         db = self.db
 
@@ -124,11 +133,14 @@ class AuthDBManager(DBManager):
                 user_roles USING(login)
             WHERE user_roles_id IS NULL;    
             """,
-                user_role,
+            user_role,
         )
         db.commit()
 
-    def is_free_login(self, login):
+    def is_free_login(self, login: str) -> bool:
+        """Проверка наличия логина в базе данных
+        Возвращает True если логин отсутствует и False если логин использован
+        """
         db = self.db
         cursor = db.execute(
             """SELECT login
@@ -139,7 +151,8 @@ class AuthDBManager(DBManager):
         )
         return not cursor.fetchone()
 
-    def get_user_list(self):
+    def get_user_list(self) -> dict:
+        """Возвращает словарь всех записей позьзователей"""
         db = self.db
 
         cursor = db.execute(
@@ -172,7 +185,8 @@ class AuthDBManager(DBManager):
             user["exist"] = record["exist"]
         return users
 
-    def get_user(self, login):
+    def get_user(self, login: str) -> dict:
+        """Возвращает словарь значений для конкретного пользователя"""
         db = self.db
         cursor = db.execute(
             """SELECT login, password, 
@@ -204,6 +218,9 @@ class AuthDBManager(DBManager):
         return user
 
     def check_user(self, login: str, password: str) -> dict:
+        """Проверка соответствия логина и пароля и, при совпадении,
+        возвращает словарь доступных ролей пользователя
+        """
         db = self.db
         cursor = db.execute(
             """SELECT COALESCE(firstname, '') as firstname, 
@@ -233,6 +250,7 @@ class AuthDBManager(DBManager):
         return roles
 
     def new_user(self, userdata: dict) -> dict:
+        """Создание записи для нового пользователя"""
         db = self.db
         cursor = db.execute(
             """INSERT INTO user(login, password, firstname, secondname, patronymic, exist)
@@ -282,6 +300,7 @@ class AuthDBManager(DBManager):
         return self.check_user(userdata["login"], userdata["password"])
 
     def update_user(self, userdata: dict):
+        """Обновление информации пользователя"""
         db = self.db
         db.execute(
             """UPDATE user
@@ -346,7 +365,10 @@ class AuthDBManager(DBManager):
         )
         db.commit()
 
-    def delete_user(self, login):
+    def delete_user(self, login: str) -> bool:
+        """Удаление записи пользователя. Возвращает True если удаление
+        прошло удачно. False в противном случае
+        """
         db = self.db
 
         db.execute("BEGIN;")
@@ -373,7 +395,8 @@ class AuthDBManager(DBManager):
         )
         return not cursor.fetchone()
 
-    def get_roles(self):
+    def get_roles(self) -> dict:
+        """Возвращает словарь всех доступных ролей"""
         db = self.db
         cursor = db.execute(
             """SELECT role, descr
@@ -384,6 +407,8 @@ class AuthDBManager(DBManager):
 
 
 class ShopDBManager(DBManager):
+    """Менеджер запросов к базе данных телефонов"""
+
     def create(self):
         db = self.db
 
@@ -459,7 +484,8 @@ class ShopDBManager(DBManager):
         )
         db.commit()
 
-    def load_content(self, filter=None):
+    def load_content(self, filter: Optional[dict] = None):
+        """Загрузить список телефонов с применением фильтра при необходимости"""
         db = self.db
         content = dict()
 
@@ -530,6 +556,7 @@ class ShopDBManager(DBManager):
         return content
 
     def add_characteristic(self, content: dict) -> None:
+        """Записать в базу данных характеристики телефонов, если они там отсутствуют"""
         db = self.db
 
         params = tuple(
@@ -550,7 +577,8 @@ class ShopDBManager(DBManager):
         )
         db.commit()
 
-    def get_characteristics(self):
+    def get_characteristics(self) -> dict:
+        """Получить из базы данных существующие характеристики телефонов"""
         db = self.db
         cursor = db.execute(
             """SELECT characteristic, descr
@@ -560,7 +588,8 @@ class ShopDBManager(DBManager):
         records = cursor.fetchall()
         return dict(records)
 
-    def get_component_values(self, characteristic) -> list:
+    def get_component_values(self, characteristic: str) -> list:
+        """Получить список значений для конкретной характеристики"""
         db = self.db
         cursor = db.execute(
             """SELECT characteristic, value
@@ -572,7 +601,8 @@ class ShopDBManager(DBManager):
         records = cursor.fetchall()
         return [record["value"] for record in records]
 
-    def get_components(self):
+    def get_components(self) -> dict:
+        """Получить словарь всех компонентов (характеристика: значение)"""
         db = self.db
 
         components = dict()
@@ -590,7 +620,8 @@ class ShopDBManager(DBManager):
             values.append(record["value"])
         return components
 
-    def get_phone_models(self):
+    def get_phone_models(self) -> dict:
+        """Получить словарь всех моделей телефонов"""
         db = self.db
 
         cursor = db.execute(
@@ -601,7 +632,10 @@ class ShopDBManager(DBManager):
         records = cursor.fetchall()
         return dict(records)
 
-    def new_model(self, modelname):
+    def new_model(self, modelname) -> Any:
+        """Добавить новую модель телефона в БД если она отсутствует
+        Возвращает -1 при неудаче
+        """
         db = self.db
 
         cursor = db.execute(
@@ -622,7 +656,7 @@ class ShopDBManager(DBManager):
         return fetch or -1
 
     def add_or_update_phone(self, content: dict) -> int:
-        """
+        """Добавить новую запись о телефоне или обновить существующую
         Inners:
                  content: dict
                     need contains:
@@ -636,8 +670,7 @@ class ShopDBManager(DBManager):
                             "description": str - Описание
                             "value": str - Значение
         Returns: int
-                 value of phone_id in database table "phone"
-                 or -1 if dublicate
+                 значение phone_id или -1 если попытка сохранения дубликата
         """
         db = self.db
 
@@ -829,7 +862,8 @@ class ShopDBManager(DBManager):
             return -1
         return phone_id
 
-    def delete_phone(self, phone_id):
+    def delete_phone(self, phone_id: int) -> None:
+        """Удаление записи о телефоне из БД"""
         db = self.db
 
         db.execute("BEGIN;")
@@ -850,7 +884,8 @@ class ShopDBManager(DBManager):
         db.execute("COMMIT;")
         db.commit()
 
-    def delete_phones_by_model(self, model_id):
+    def delete_phones_by_model(self, model_id: int) -> None:
+        """Удаление всех телефонов указанной модели, включая саму модель"""
         db = self.db
         db.execute("BEGIN;")
         db.execute(

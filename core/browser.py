@@ -16,6 +16,10 @@ import json
 
 
 class Browser(object):
+    """Основное приложение
+    Args:
+        database: Объект SQLiteDatabase
+    """
     def __init__(self, database):
         self.db = database
         self.user = None
@@ -29,11 +33,15 @@ class Browser(object):
         self.pages = dict()
         self.db_managers = dict()
 
-    def run(self):
+    def run(self) -> None:
+        """Запуск приложения
+        """
         self.__init_app()
         self.browser_tk.mainloop()
 
-    def __init_app(self):
+    def __init_app(self) -> None:
+        """Инициализация приложения
+        """
         self.__create_db_managers()
         self.__load_settings()
         self.__init_pages()
@@ -45,19 +53,27 @@ class Browser(object):
         self.__create_or_refresh_menu()
         self.__create_pages()
 
-    def __create_db_managers(self):
+    def __create_db_managers(self) -> None:
+        """Создание объектов менеджеров базы данных
+        """
         self.db_managers["auth"] = AuthDBManager(self.db)
         self.db_managers["shop"] = ShopDBManager(self.db)
 
-    def __load_settings(self):
+    def __load_settings(self) -> None:
+        """Загрузка настроек браузера
+        """
         if not self.settings:
             self.settings = BrowserSettings(SETTINGS_FILE)
 
-    def __init_pages(self):
+    def __init_pages(self) -> None:
+        """Инициализация стартера приложений
+        """
         for page in ("logon", "main-shop", "main-admin"):
             self.pages[page] = PageRunner()
 
-    def __create_router(self):
+    def __create_router(self) -> None:
+        """Запуск роутера и регистрация команд для работы главного меню
+        """
         if not self.router:
             self.router = Router()
             self.router.register_rout("main-shop", self.pages["main-shop"].launch("run"), history=True)
@@ -66,15 +82,21 @@ class Browser(object):
             self.router.register_rout("changeuser", self.pages["logon"].launch("run"))
             self.router.register_rout("quit", self.browser_tk.destroy)
 
-    def refresh(self, *args, **kwargs):
+    def refresh(self, *args, **kwargs) -> None:
+        """Обновление меню и запущенного приложения
+        """
         self.__create_or_refresh_menu()
         self.router.call_history()
 
-    def __create_virtual_events(self):
+    def __create_virtual_events(self) -> None:
+        """Регистрация пользовательского события, запускающего обновление браузера
+        """
         self.browser_tk.event_add("<<UserChange>>", "None")
         self.browser_tk.bind("<<UserChange>>", self.refresh, "%d")
 
-    def __create_environment(self):
+    def __create_environment(self) -> None:
+        """Формирование внешнего вида браузера
+        """
         self.browser_tk.title(self.settings.title)
         self.browser_tk.minsize(width=800, height=600)
 
@@ -105,24 +127,32 @@ class Browser(object):
             trans_y = self.settings.screen.position.translate_y
         self.browser_tk.geometry("{}x{}+{}+{}".format(width, height, trans_x, trans_y))
 
-    def __create_mainwindow(self):
+    def __create_mainwindow(self) -> None:
+        """Создание окна, предназначенного для запуска (инъекции) приложений
+        """
         self.window.grid(sticky="WENS")
 
         tk.Grid.columnconfigure(self.window, 0, weight=1)
         tk.Grid.rowconfigure(self.window, 0, weight=1)
 
-    def __init_user(self):
+    def __init_user(self) -> None:
+        """Инициализация пользователя
+        """
         self.user = User(self.db_managers["auth"])
         self.access = AccessController(self.user)
 
-    def __create_or_refresh_menu(self):
+    def __create_or_refresh_menu(self) -> None:
+        """Создание или обновление главного меню
+        """
         if not self.menu:
             self.menu = MainMenu(self.browser_tk, self.browser)
             self.browser_tk.config(menu=self.menu.menu())
         else:
             self.menu.refresh()
 
-    def __create_pages(self):
+    def __create_pages(self) -> None:
+        """Регистрация запускаемых страниц в стартере
+        """
         self.pages["logon"].set_page(AuthForm(self.window, self.browser))
         self.pages["main-shop"].set_page(ShopForm(self.window, self.browser))
         self.pages["main-admin"].set_page(AdminForm(self.window, self.browser))
@@ -130,12 +160,10 @@ class Browser(object):
 
 
 class BrowserSettings(object):
-    """Load app settings
-
+    """Загрузка настроек браузера
     Args:
         settings_file: str
-            path to .json file with app settings
-
+            путь к .json файлу, в котором хранятся настройки
     Returns:
         None:
     """
@@ -169,6 +197,14 @@ class BrowserSettings(object):
         self.__load_settings()
 
     def __compare(self, default: DotDict, load: dict) -> DotDict:
+        """Сравнение настроек по умолчанию с загруженными настройками. 
+            Не загруженные настройки берутся из настроек по умолчанию
+        Args:
+            default (DotDict): настройки по умолчанию
+            load (dict): загруженные настройки
+        Returns:
+            DotDict: скомпонованные настройки
+        """
         settings = DotDict()
         for cursor in default:
             if isinstance(default[cursor], DotDict):
@@ -190,6 +226,8 @@ class BrowserSettings(object):
         return settings
 
     def __load_settings(self) -> None:
+        """Загрузка настроек из файла
+        """
         try:
             with open(self.__settings_file, "rt", encoding="UTF-8") as settings_file:
                 load_settings = json.load(settings_file)
