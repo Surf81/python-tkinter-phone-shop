@@ -1,21 +1,21 @@
 import tkinter as tk
 from tkinter import ttk
 
-from core.router import PageRunner, Router
-from phoneshop.admin.useradmin import UserAdminFrame
-from phoneshop.admin.phoneadmin import PhoneAdminFrame
+from core.router import PageRunner
+from phoneshop.admin.useradmin import UserAdminPage
+from phoneshop.admin.phoneadmin import PhoneAdminPage
 
 
-class Admin(object):
-    def __init__(self, browser, database, access, user):
-        self.master = browser
-        self.db = database
-        self.access = access
-        self.user = user
+class AdminForm(object):
+    def __init__(self, master_window, browser):
+        self.master = master_window
+        self.browser = browser
+        self.router = browser.router
+        self.access = browser.access
+        self.user = browser.user
         self.window = tk.Frame(self.master)
-        self.router = None
         self.pages = dict()
-        self.widgets = dict()
+        self.frames = dict()
         self.__init()
 
     def __init(self):
@@ -30,26 +30,25 @@ class Admin(object):
         tk.Grid.columnconfigure(win, 1, weight=15)
         tk.Grid.rowconfigure(win, 1, weight=1)
 
-        self.widgets["topbar"] = TopBar(win, self.user)
-        self.widgets["topbar"].grid(row=0, column=0, columnspan=2, sticky="WE")
-        self.widgets["sidebar"] = SideBar(win, self.router)
-        self.widgets["sidebar"].grid(row=1, column=0, sticky="WENS")
-        self.widgets["mainframe"] = MainFrame(win)
-        self.widgets["mainframe"].grid(row=1, column=1, sticky="WENS")
+        self.frames["topbar"] = TopBarFrame(win, self.browser)
+        self.frames["topbar"].grid(row=0, column=0, columnspan=2, sticky="WE")
+        self.frames["sidebar"] = SideBarFrame(win, self.browser)
+        self.frames["sidebar"].grid(row=1, column=0, sticky="WENS")
+        self.frames["mainframe"] = MainFrame(win, self.browser)
+        self.frames["mainframe"].grid(row=1, column=1, sticky="WENS")
 
     def __init_pages(self):
-        for page in ("user", "characteristic", "phone"):
+        for page in ("user-admin-app", "phone-admin-app"):
             self.pages[page] = PageRunner()
 
     def __create_router(self):
-        self.router = Router()
-        self.router.register_rout("user", self.pages["user"].launch("run"))
-        self.router.register_rout("phone", self.pages["phone"].launch("run"))
+        self.router.register_rout("user-admin-app", self.pages["user-admin-app"].launch("run"))
+        self.router.register_rout("phone-admin-app", self.pages["phone-admin-app"].launch("run"))
 
     def __create_pages(self):
-        win = self.widgets["mainframe"]
-        self.pages["user"].set_page(UserAdminFrame(win, self.db, self.user))
-        self.pages["phone"].set_page(PhoneAdminFrame(win, self.db))
+        win = self.frames["mainframe"]
+        self.pages["user-admin-app"].set_page(UserAdminPage(win, self.browser))
+        self.pages["phone-admin-app"].set_page(PhoneAdminPage(win, self.browser))
 
     def __clear_browser(self):
         for item in self.master.grid_slaves():
@@ -57,15 +56,17 @@ class Admin(object):
 
     def run(self):
         self.__clear_browser()
-        self.widgets["topbar"].refresh()
+        self.frames["topbar"].refresh()
         if self.access.is_allow("adminpage"):
             self.window.grid(sticky="WENS")
 
 
-class TopBar(tk.Frame):
-    def __init__(self, browser, user, *args, **kwargs):
-        super().__init__(browser, *args, **kwargs)
-        self.user = user
+class TopBarFrame(tk.Frame):
+    def __init__(self, master_window, browser, *args, **kwargs):
+        super().__init__(master_window, *args, **kwargs)
+        self.browser = browser
+        self.master = master_window
+        self.user = browser.user
         self.login_lbl = None
         self.role_lbl = None
         self.__create_form()
@@ -96,11 +97,12 @@ class TopBar(tk.Frame):
         self.role_lbl.config(text=self.user.user["role_descriptor"])
 
 
-class SideBar(tk.Frame):
-    def __init__(self, browser, router, *args, **kwargs):
-        super().__init__(browser, *args, **kwargs)
-        self.master = browser
-        self.router = router
+class SideBarFrame(tk.Frame):
+    def __init__(self, master_window, browser, *args, **kwargs):
+        super().__init__(master_window, *args, **kwargs)
+        self.browser = browser
+        self.master = master_window
+        self.router = browser.router
         self.__create_form()
 
     def __create_form(self):
@@ -129,18 +131,19 @@ class SideBar(tk.Frame):
             row=4, column=0, padx=5, pady=[20, 10]
         )
 
-        ttk.Button(menuframe, text="Пользователи", command=self.router("user")).grid(
+        ttk.Button(menuframe, text="Пользователи", command=self.router("user-admin-app")).grid(
             row=2, column=0, sticky="WE"
         )
-        ttk.Button(menuframe, text="Телефоны", command=self.router("phone")).grid(
+        ttk.Button(menuframe, text="Телефоны", command=self.router("phone-admin-app")).grid(
             row=6, column=0, sticky="WE"
         )
 
 
 class MainFrame(tk.Frame):
-    def __init__(self, browser, *args, **kwargs):
-        super().__init__(browser, *args, **kwargs)
-        self.master = browser
+    def __init__(self, master_window, browser, *args, **kwargs):
+        super().__init__(master_window, *args, **kwargs)
+        self.browser = browser
+        self.master = master_window
         self.__create_form()
 
     def __create_form(self):

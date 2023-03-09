@@ -10,26 +10,26 @@ class User(object):
         "role_descriptor": "Не зарегистрирован",
     }
 
-    def __init__(self, database):
+    def __init__(self, db_manager):
         self.user = dict(self.default_user)
-        self.db = database
+        self.db_manager = db_manager
 
     def logon(self, login, password):
-        roles = self.db.check_user(login, password)
+        roles = self.db_manager.check_user(login, password)
         if not roles:
             self.user = dict(self.default_user)
             return False
         return roles
 
     def new_user(self, userdata):
-        roles = self.db.new_user(userdata)
+        roles = self.db_manager.new_user(userdata)
         if not roles:
             self.user = dict(self.default_user)
             return False
         return roles
 
     def is_free_login(self, login):
-        return self.db.is_free_login(login)
+        return self.db_manager.is_free_login(login)
 
     def set_role(self, role=None):
         if role:

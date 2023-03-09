@@ -21,15 +21,12 @@ class Router(object):
 
         return wrapper
 
-
     def register_rout(self, label, command, history=False):
         router = self.routers.setdefault(label, dict())
         router["command"] = command
         router["history"] = history
 
-
-    def refresh_event(self, event):
-        self.__call__("refresh")()
+    def call_history(self):
         if self.history:
             self.__call__(self.history)()
 

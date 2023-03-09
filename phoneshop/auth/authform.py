@@ -6,14 +6,15 @@ from tkinter import font
 from core.settings import *
 
 
-class Auth:
+class AuthForm:
     WIDTH = 400
     HEIGHT = 190
 
-    def __init__(self, master, user):
-        self.master = master
+    def __init__(self, master_window, browser):
+        self.master = master_window
+        self.browser = browser
         self.dialog_window = None
-        self.user = user
+        self.user = browser.user
         self.params = dict()
         self.widgets = dict()
 

@@ -6,11 +6,11 @@ from tkinter.messagebox import askquestion, showerror
 from core.settings import *
 
 
-class UserAdminFrame(object):
-    def __init__(self, browser, database, user):
-        self.master = browser
-        self.db = database
-        self.user = user
+class UserAdminPage(object):
+    def __init__(self, master_window, browser):
+        self.browser = browser
+        self.master = master_window
+        self.user = browser.user
         self.window = tk.Frame(self.master)
         self.table = None
         self.params = dict()
@@ -35,11 +35,12 @@ class UserAdminFrame(object):
             self.__load_data_in_form(login)
 
     def __refresh_table(self):
+        auth_db_manager = self.browser.db_managers["auth"]
         table = self.table
         for item in table.get_children():
             table.delete(item)
 
-        all_users = self.db.get_user_list()
+        all_users = auth_db_manager.get_user_list()
         for count, user in enumerate(all_users.values(), start=1):
             item = (
                 count,
@@ -126,9 +127,10 @@ class UserAdminFrame(object):
         return True
 
     def __get_available_access(self):
+        auth_db_manager = self.browser.db_managers["auth"]
         access = [
             item
-            for key, item in self.db.get_roles().items()
+            for key, item in auth_db_manager.get_roles().items()
             if key not in self.params["access"]
         ]
         if access:
@@ -138,13 +140,14 @@ class UserAdminFrame(object):
         return access
 
     def __load_data_in_form(self, login):
+        auth_db_manager = self.browser.db_managers["auth"]
         login = login.strip()
         if not login:
             return
-        if not self.db.is_free_login(login):
+        if not auth_db_manager.is_free_login(login):
             self.current_login = login
 
-            user = self.db.get_user(login)
+            user = auth_db_manager.get_user(login)
             self.params["login"].set(user["login"])
             self.params["password"].set(user["password"])
             self.params["fname"].set(user["firstname"])
@@ -344,12 +347,13 @@ class UserAdminFrame(object):
             self.widgets["btn-access-del"].config(state=tk.DISABLED)
 
     def __add_access(self):
+        auth_db_manager = self.browser.db_managers["auth"]
         if self.params["availableaccess"].get():
             self.widgets["access"].insert(tk.END, self.params["availableaccess"].get())
             self.params["access"].update(
                 {
                     key: item
-                    for key, item in self.db.get_roles().items()
+                    for key, item in auth_db_manager.get_roles().items()
                     if item == self.params["availableaccess"].get()
                 }
             )
@@ -383,6 +387,7 @@ class UserAdminFrame(object):
             self.params["change"].set(True)
 
     def __del_item_from_db(self):
+        auth_db_manager = self.browser.db_managers["auth"]
         if self.current_login and self.current_login == self.params["login"].get():
             if self.current_login == self.user.user["login"]:
                 showerror(
@@ -398,13 +403,14 @@ class UserAdminFrame(object):
                 )
                 == "yes"
             ):
-                if self.db.delete_user(self.current_login):
+                if auth_db_manager.delete_user(self.current_login):
                     self.__refresh_table()
                     self.__clear_data_in_form()
                 else:
                     showerror("Ошибка удаления", "Удаление прошло не удачно")
 
     def __create_new_user_or_update(self):
+        auth_db_manager = self.browser.db_managers["auth"]
         params = self.params
         if not(params["login"].get() and params["password"].get()):
             return
@@ -421,10 +427,10 @@ class UserAdminFrame(object):
         for role in params["access"].keys():
             userdata["roles"].append(role)
 
-        if self.db.is_free_login(userdata["login"]):
-            self.db.new_user(userdata)
+        if auth_db_manager.is_free_login(userdata["login"]):
+            auth_db_manager.new_user(userdata)
         else:
-            self.db.update_user(userdata)
+            auth_db_manager.update_user(userdata)
         self.__refresh_table()
         self.__clear_data_in_form()
 

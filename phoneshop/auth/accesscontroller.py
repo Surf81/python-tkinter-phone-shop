@@ -1,4 +1,4 @@
-class Access(object):
+class AccessController(object):
     rules = {
         "adminmenu": {
             "admin": True

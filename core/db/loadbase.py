@@ -1,10 +1,8 @@
 import json
 from core.settings import DATABASE
-from phoneshop.db.db import DB
 
 
-def load_phone_base():
-    phone_shop_base = DB(DATABASE["SQLITE"])
+def load_phone_base(phone_db_manager):
 
     try:
         with open(DATABASE["JSON"], "rt", encoding="UTF-8") as json_file:
@@ -23,10 +21,8 @@ def load_phone_base():
             for key, content in item.items():
                 if isinstance(content, dict):
                     if key.strip().lower() == "phone":
-                        phone_shop_base.add_or_update_phone(content)
+                        phone_db_manager.add_or_update_phone(content)
                     elif key.strip().lower() == "characteristic":
-                        phone_shop_base.add_characteristic(content)
-    
-    phone_shop_base.close()
+                        phone_db_manager.add_characteristic(content)
 
 

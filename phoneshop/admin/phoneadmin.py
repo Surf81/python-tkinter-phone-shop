@@ -1,15 +1,16 @@
 import string
-from tkinter.messagebox import askquestion, showerror
+
 import tkinter as tk
 from tkinter import ttk
+from tkinter.messagebox import askquestion
 
-from phoneshop.db.loadbase import load_phone_base
+from core.db.loadbase import load_phone_base
 
 
-class PhoneAdminFrame(object):
-    def __init__(self, browser, database):
-        self.master = browser
-        self.db = database
+class PhoneAdminPage(object):
+    def __init__(self, master_window, browser):
+        self.browser = browser
+        self.master = master_window
         self.window = tk.Frame(self.master)
         self.table = None
         self.form = tk.Frame(self.window)
@@ -20,9 +21,10 @@ class PhoneAdminFrame(object):
         self.__create_form()
 
     def __refresh_content(self):
-        self.params["allmodels"] = self.db.get_phone_models()
-        self.params["allcharacteristics"] = self.db.get_characteristics()
-        self.content = self.db.load_content()
+        shop_db_manager = self.browser.db_managers["shop"]
+        self.params["allmodels"] = shop_db_manager.get_phone_models()
+        self.params["allcharacteristics"] = shop_db_manager.get_characteristics()
+        self.content = shop_db_manager.load_content()
 
     def __on_table_click(self, event):
         item = self.table.identify("item", event.x, event.y)
@@ -75,9 +77,9 @@ class PhoneAdminFrame(object):
 
         table.tag_configure("group", background="#007046", foreground="white")
 
-        self.vsb = tk.Scrollbar(win, orient=tk.VERTICAL, command=table.yview)
-        table.configure(yscrollcommand=self.vsb.set)
-        self.vsb.grid(row=0, column=1, sticky="NS")
+        vsb = tk.Scrollbar(win, orient=tk.VERTICAL, command=table.yview)
+        table.configure(yscrollcommand=vsb.set)
+        vsb.grid(row=0, column=1, sticky="NS")
         table.bind("<Button-1>", self.__on_table_click)
         self.__refresh_table()
 
@@ -204,19 +206,19 @@ class PhoneAdminFrame(object):
             win.destroy()
 
     def __fill_choice_widget(self, widget, charact):
+        shop_db_manager = self.browser.db_managers["shop"]
         widget.delete(0, tk.END)
-        for value in self.db.get_component_values(charact):
+        for value in shop_db_manager.get_component_values(charact):
             widget.insert(tk.END, value)
 
     def __open__add_component_dialog(self):
         dialog_window = tk.Toplevel(self.window)
         win = dialog_window
         width = 400
-        height = 300
+        height = 250
 
         win.wm_title("Выбрать компонент")
         win.resizable(False, False)
-        # auth.overrideredirect(True) # Режим работы без отдельного окна
         win.tkraise(self.master)
         win.grab_set()
 
@@ -444,11 +446,13 @@ class PhoneAdminFrame(object):
         form.grid(row=1, column=0, sticky="WENS", pady=20, padx=20)
 
     def __load_phone_base(self):
-        load_phone_base()
+        shop_db_manager = self.browser.db_managers["shop"]
+        load_phone_base(shop_db_manager)
         self.__refresh_table()
         self.__clear_data_in_form()
 
     def __delete_phone(self):
+        shop_db_manager = self.browser.db_managers["shop"]
         if (
             self.params["phone_id"].get()
             and askquestion(
@@ -459,11 +463,12 @@ class PhoneAdminFrame(object):
             )
             == "yes"
         ):
-            self.db.delete_phone(self.params["phone_id"].get())
+            shop_db_manager.delete_phone(self.params["phone_id"].get())
             self.__refresh_table()
             self.__clear_data_in_form()
 
     def __delete_model(self):
+        shop_db_manager = self.browser.db_managers["shop"]
         if (
             self.params["model_id"]
             and askquestion(
@@ -474,13 +479,14 @@ class PhoneAdminFrame(object):
             )
             == "yes"
         ):
-            self.db.delete_phones_by_model(self.params["model_id"])
+            shop_db_manager.delete_phones_by_model(self.params["model_id"])
             self.__refresh_table()
             self.__clear_data_in_form()
 
     def __add_new_model(self, win, model):
+        shop_db_manager = self.browser.db_managers["shop"]
         if model:
-            if self.db.new_model(model) != -1:
+            if shop_db_manager.new_model(model) != -1:
                 self.__refresh_content()
                 self.__clear_data_in_form()
                 win.destroy()
@@ -518,6 +524,7 @@ class PhoneAdminFrame(object):
         ).grid(row=10, column=0, columnspan=2, sticky="we", padx=20, pady=20)
 
     def __save_changes_or_create(self):
+        shop_db_manager = self.browser.db_managers["shop"]
         phone = {
             "phone_id": self.params["phone_id"].get(),
             "model_id": self.params["model_id"],
@@ -525,7 +532,7 @@ class PhoneAdminFrame(object):
             "price": float(self.params["price"].get().strip()),
             "components": self.params["characteristics"],
         }
-        self.db.add_or_update_phone(phone)
+        shop_db_manager.add_or_update_phone(phone)
         self.__refresh_table()
         self.__clear_data_in_form()
 
@@ -536,6 +543,5 @@ class PhoneAdminFrame(object):
     def run(self):
         self.__clear_browser()
         self.__refresh_table()
-        # self.__clear_data_in_form()
 
         self.window.grid(sticky="WENS")

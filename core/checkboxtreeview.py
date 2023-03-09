@@ -99,3 +99,70 @@ class CheckboxTreeview(ttk.Treeview):
             else:
                 self.uncheck_descendant(item)
                 self.uncheck_ancestor(item)
+
+
+class MyCheckboxTreeview(CheckboxTreeview):
+    def __init__(self, browser, content, *args, **kwargs):
+        super().__init__(browser, *args, **kwargs)
+        self.content = None
+        self.refresh(content)
+
+    def refresh(self, content):
+        self.content = content
+        self.__build_elements_by_content()
+
+    def __build_elements_by_content(self):
+        for item in self.get_children():
+            self.delete(item)
+
+        for charact, item in self.content.items():
+            self.insert(
+                "",
+                tk.END,
+                charact,
+                text=item["description"],
+                tags=("checked" if item["checked"] else "unchecked",),
+            )
+            for value, value_item in item["values"].items():
+                self.insert(
+                    charact,
+                    tk.END,
+                    value,
+                    text=value_item["description"],
+                    tags=("checked" if value_item["checked"] else "unchecked",),
+                )
+
+    def get_content(self):
+        return self.content
+
+    def __change_content(self, content, iid, flag):
+        for key, item in content.items():
+            if key == iid:
+                item["checked"] = flag
+            values = item.get("values")
+            if values:
+                self.__change_content(values, iid, flag)
+
+    def check_ancestor(self, item):
+        self.__change_content(self.content, item, True)
+        super().check_ancestor(item)
+
+    def check_descendant(self, item):
+        children = self.get_children(item)
+        for iid in children:
+            self.__change_content(self.content, iid, True)
+        super().check_descendant(item)
+
+    def uncheck_descendant(self, item):
+        children = self.get_children(item)
+        for iid in children:
+            self.__change_content(self.content, iid, False)
+        super().uncheck_descendant(item)
+
+    def uncheck_ancestor(self, item):
+        self.__change_content(self.content, item, False)
+        super().uncheck_ancestor(item)
+
+    def tristate_parent(self, item):
+        self.__change_content(self.content, item, True)
+        super().tristate_parent(item)
